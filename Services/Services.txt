@@ -1,0 +1,1873 @@
+Код для файла ActCalculationService.cs:
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using AGenerator.Models;
+
+namespace AGenerator.Services;
+
+/// <summary>
+/// Сервис для автоматического расчёта вычисляемых полей акта.
+/// Аналог VBA-логики из функции ВосстановитьФормулы (столбцы "Автоназвание работ" и "Итоговый номер акта").
+/// </summary>
+public class ActCalculationService
+{
+    /// <summary>
+    /// Пересчитать все вычисляемые поля акта.
+    /// Вызывать при каждом изменении зависимых свойств.
+    /// </summary>
+    public static void RecalculateAll(Act act)
+    {
+        if (act == null) return;
+
+        CalculateAutoWorkName(act);
+        CalculateFinalActNumber(act);
+    }
+
+    /// <summary>
+    /// Расчёт автоназвания работ.
+    /// Аналог Excel-формулы:
+    /// =TRIM([@[Наименование работ]]&" "&[@Уровень1]&" "&[@Уровень2]&" "&[@Уровень3]&" "&[@[Отм.]]&" "&[@[В осях]]&" "&IF(ISBLANK([@Объём]),""," ("&[@Объём]&" "&[@[Ед.изм.]]&")"))
+    /// </summary>
+    private static void CalculateAutoWorkName(Act act)
+    {
+        var parts = new List<string>();
+
+        // 1. Наименование работ (базовое)
+        if (!string.IsNullOrWhiteSpace(act.WorkName))
+            parts.Add(act.WorkName.Trim());
+
+        // 2. Уровни 1-3 (структурная иерархия)
+        if (!string.IsNullOrWhiteSpace(act.Level1))
+            parts.Add(act.Level1.Trim());
+        if (!string.IsNullOrWhiteSpace(act.Level2))
+            parts.Add(act.Level2.Trim());
+        if (!string.IsNullOrWhiteSpace(act.Level3))
+            parts.Add(act.Level3.Trim());
+
+        // 3. Отметка
+        if (!string.IsNullOrWhiteSpace(act.Mark))
+            parts.Add(act.Mark.Trim());
+
+        // 4. В осях
+        if (!string.IsNullOrWhiteSpace(act.InAxes))
+            parts.Add(act.InAxes.Trim());
+
+        // 5. Объём и единица измерения (в скобках, если объём задан)
+        if (!string.IsNullOrWhiteSpace(act.Volume))
+        {
+            var volumePart = $"({act.Volume.Trim()}";
+            if (!string.IsNullOrWhiteSpace(act.UnitOfMeasure))
+                volumePart += $" {act.UnitOfMeasure.Trim()}";
+            volumePart += ")";
+            parts.Add(volumePart);
+        }
+
+        act.AutoWorkName = string.Join(" ", parts);
+    }
+
+    /// <summary>
+    /// Расчёт итогового номера акта.
+    /// Упрощённая версия VBA-маски (мс1..мс13).
+    /// Формат: "Тип Номер" (например: "АОСР 123")
+    /// В будущем здесь будет полная логика с настраиваемой маской из настроек.
+    /// </summary>
+    private static void CalculateFinalActNumber(Act act)
+    {
+        var typePrefix = string.IsNullOrWhiteSpace(act.Type) ? "" : act.Type.Trim();
+        var number = string.IsNullOrWhiteSpace(act.ActNumber) ? "№?" : act.ActNumber.Trim();
+
+        act.FinalActNumber = string.IsNullOrWhiteSpace(typePrefix)
+            ? number
+            : $"{typePrefix} {number}";
+    }
+
+    /// <summary>
+    /// Получить отображаемый тип колодца/камеры для подстановки в название.
+    /// </summary>
+    public static string GetManholeTypeText(string manholeType)
+    {
+        return manholeType switch
+        {
+            "Камера" => "в камере",
+            "Дождеприемная решетка" => "в дождеприемной решетке",
+            _ => "в колодце"
+        };
+    }
+}
+Код для файла FileService.cs^
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+
+namespace AGenerator.Services;
+
+public class FileService : IFileService
+{
+    private readonly string _baseOutputPath;
+    private readonly string _templatesPath;
+
+    public FileService()
+    {
+        // Базовая папка вывода: [корень программы]\Документы
+        _baseOutputPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Документы");
+
+        // Папка шаблонов - в директории приложения
+        _templatesPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Templates");
+
+        // Создаем базовые папки при инициализации
+        Directory.CreateDirectory(_baseOutputPath);
+        Directory.CreateDirectory(_templatesPath);
+    }
+
+    public string GetBaseOutputPath()
+    {
+        return _baseOutputPath;
+    }
+
+    public string GetObjectFolderPath(int objectId, string objectName)
+    {
+        // Используем имя объекта для читаемости, но добавляем ID для уникальности
+        var safeName = SanitizeFileName(objectName);
+        return Path.Combine(_baseOutputPath, $"{objectId}_{safeName}");
+    }
+
+    public string GetActsFolderPath(int objectId, string objectName, string actType)
+    {
+        var objPath = GetObjectFolderPath(objectId, objectName);
+        var path = Path.Combine(objPath, "Акты", actType);
+        Directory.CreateDirectory(path);
+        return path;
+    }
+
+    public string GetSchemasFolderPath(int objectId, string objectName)
+    {
+        var objPath = GetObjectFolderPath(objectId, objectName);
+        var path = Path.Combine(objPath, "Схемы");
+        Directory.CreateDirectory(path);
+        return path;
+    }
+
+    public string GetProtocolsFolderPath(int objectId, string objectName)
+    {
+        var objPath = GetObjectFolderPath(objectId, objectName);
+        var path = Path.Combine(objPath, "Протоколы и заключения");
+        Directory.CreateDirectory(path);
+        return path;
+    }
+
+    public string GetMaterialsFolderPath(int objectId, string objectName)
+    {
+        var objPath = GetObjectFolderPath(objectId, objectName);
+        var path = Path.Combine(objPath, "Материалы");
+        Directory.CreateDirectory(path);
+        return path;
+    }
+
+    public void EnsureFoldersExist(int objectId, string objectName)
+    {
+        try
+        {
+            var objPath = GetObjectFolderPath(objectId, objectName);
+            Directory.CreateDirectory(objPath);
+            Directory.CreateDirectory(Path.Combine(objPath, "Акты"));
+            Directory.CreateDirectory(Path.Combine(objPath, "Схемы"));
+            Directory.CreateDirectory(Path.Combine(objPath, "Протоколы и заключения"));
+            Directory.CreateDirectory(Path.Combine(objPath, "Материалы"));
+            Directory.CreateDirectory(Path.Combine(objPath, "Приказы"));
+            Directory.CreateDirectory(Path.Combine(objPath, "Проекты"));
+
+            // Создаем подпапки для разных типов актов
+            var actsPath = Path.Combine(objPath, "Акты");
+            foreach (var actType in GetDefaultActTypes())
+            {
+                Directory.CreateDirectory(Path.Combine(actsPath, actType));
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[WARNING] Ошибка создания папок: {ex.Message}");
+            // Не бросаем исключение дальше, чтобы не крашить приложение при старте
+        }
+    }
+
+    public string GetTemplatePath(string templateName)
+    {
+        var templatePath = Path.Combine(_templatesPath, templateName);
+        
+        if (!File.Exists(templatePath))
+        {
+            throw new FileNotFoundException($"Шаблон '{templateName}' не найден в папке {_templatesPath}");
+        }
+        
+        return templatePath;
+    }
+
+    /// <summary>
+    /// Очистка имени файла от недопустимых символов
+    /// </summary>
+    private static string SanitizeFileName(string fileName)
+    {
+        var invalidChars = Path.GetInvalidFileNameChars();
+        var sanitized = new string(fileName
+            .Where(c => !invalidChars.Contains(c))
+            .ToArray());
+        
+        // Заменяем пробелы на подчеркивания для удобства
+        return sanitized.Replace(' ', '_');
+    }
+
+    /// <summary>
+    /// Список типов актов по умолчанию
+    /// </summary>
+    private static IEnumerable<string> GetDefaultActTypes()
+    {
+        yield return "АОСР";
+        yield return "АООК";
+        yield return "АОИО";
+        yield return "АВК";
+        yield return "АГИ";
+        yield return "АИИО";
+        yield return "АОГРОКС";
+        yield return "АОСР3";
+        yield return "АОУСИТО";
+        yield return "АПрОб";
+        yield return "АРООКС";
+        yield return "ОтЭфД";
+    }
+
+    // ==================== МЕТОДЫ СОХРАНЕНИЯ ФАЙЛОВ ====================
+
+    public string SaveOrderFile(int objectId, string objectName, Stream fileStream, string employeeFullName, string orderNumber, DateTime? orderDate, string originalFileName)
+    {
+        var objPath = GetObjectFolderPath(objectId, objectName);
+        var dir = Path.Combine(objPath, "Приказы");
+        Directory.CreateDirectory(dir);
+
+        // Формируем имя: Приказ на [ФИО в род. падеже] №[номер или б/н][ от дата].[ext]
+        var ext = Path.GetExtension(originalFileName);
+        var genitiveName = RussianNameDeclension.ToGenitiveCase(employeeFullName);
+        var fileName = $"Приказ на {SanitizeFileName(genitiveName)}";
+
+        // Номер приказа: если пустой — "б/н"
+        var numPart = string.IsNullOrWhiteSpace(orderNumber) ? "б/н" : SanitizeFileName(orderNumber);
+        fileName += $" №{numPart}";
+
+        // Дата приказа: только если есть
+        if (orderDate.HasValue)
+            fileName += $" от {orderDate.Value:dd.MM.yyyy}";
+
+        fileName += ext;
+
+        var filePath = Path.Combine(dir, SanitizeFileName(fileName));
+        filePath = GetUniqueFilePath(filePath);
+
+        using var fs = new FileStream(filePath, FileMode.Create);
+        fileStream.CopyTo(fs);
+        return filePath;
+    }
+
+    public string SaveMaterialCert(int objectId, string objectName, string materialType, Stream fileStream,
+        string materialName, string documentTypeDisplay, string docNumber, string docDateText, string originalFileName)
+    {
+        var objPath = GetObjectFolderPath(objectId, objectName);
+        var dir = Path.Combine(objPath, "Материалы", SanitizeFileName(materialType));
+        Directory.CreateDirectory(dir);
+
+        // Формируем имя: [наименование] ([тип док] №[номер или б/н][ от дата]).[ext]
+        var ext = Path.GetExtension(originalFileName);
+        var fileName = SanitizeFileName(materialName);
+
+        // Тип документа в скобках
+        var docPart = SanitizeFileName(documentTypeDisplay);
+        var numPart = string.IsNullOrWhiteSpace(docNumber) ? "б/н" : SanitizeFileName(docNumber);
+
+        fileName += $" ({docPart} №{numPart}";
+        if (!string.IsNullOrWhiteSpace(docDateText))
+            fileName += $" от {SanitizeFileName(docDateText)}";
+        fileName += ")";
+
+        fileName += ext;
+
+        var filePath = Path.Combine(dir, SanitizeFileName(fileName));
+        filePath = GetUniqueFilePath(filePath);
+
+        using var fs = new FileStream(filePath, FileMode.Create);
+        fileStream.CopyTo(fs);
+        return filePath;
+    }
+
+    public string SaveSchemaFile(int objectId, string objectName, Stream fileStream,
+        string schemaName, string schemaNumber, DateTime? schemaDate, string originalFileName)
+    {
+        var objPath = GetObjectFolderPath(objectId, objectName);
+        var dir = Path.Combine(objPath, "Схемы");
+        Directory.CreateDirectory(dir);
+
+        // Формируем имя: [название] №[номер] от [дата].[ext] или просто [название]
+        var ext = Path.GetExtension(originalFileName);
+        var fileName = SanitizeFileName(schemaName);
+        if (!string.IsNullOrEmpty(schemaNumber))
+            fileName += $" №{SanitizeFileName(schemaNumber)}";
+        if (schemaDate.HasValue)
+            fileName += $" от {schemaDate.Value:dd.MM.yyyy}";
+        fileName += ext;
+
+        var filePath = Path.Combine(dir, SanitizeFileName(fileName));
+        filePath = GetUniqueFilePath(filePath);
+
+        using var fs = new FileStream(filePath, FileMode.Create);
+        fileStream.CopyTo(fs);
+        return filePath;
+    }
+
+    public string SaveProtocolFile(int objectId, string objectName, Stream fileStream,
+        string documentTypeDisplay, string protocolNumber, DateTime? protocolDate, string originalFileName)
+    {
+        var objPath = GetObjectFolderPath(objectId, objectName);
+        var dir = Path.Combine(objPath, "Протоколы и заключения");
+        Directory.CreateDirectory(dir);
+
+        // Формируем имя: [тип] №[номер] от [дата].[ext]
+        var ext = Path.GetExtension(originalFileName);
+        var fileName = SanitizeFileName(documentTypeDisplay);
+        if (!string.IsNullOrEmpty(protocolNumber))
+            fileName += $" №{SanitizeFileName(protocolNumber)}";
+        if (protocolDate.HasValue)
+            fileName += $" от {protocolDate.Value:dd.MM.yyyy}";
+        fileName += ext;
+
+        var filePath = Path.Combine(dir, SanitizeFileName(fileName));
+        filePath = GetUniqueFilePath(filePath);
+
+        using var fs = new FileStream(filePath, FileMode.Create);
+        fileStream.CopyTo(fs);
+        return filePath;
+    }
+
+    public string SaveProjectFile(int objectId, string objectName, Stream fileStream,
+        string projectName, string projectCode, string originalFileName)
+    {
+        var objPath = GetObjectFolderPath(objectId, objectName);
+        var dir = Path.Combine(objPath, "Проекты");
+        Directory.CreateDirectory(dir);
+
+        // Формируем имя: [название раздела] [шифр].[ext]
+        var ext = Path.GetExtension(originalFileName);
+        var fileName = SanitizeFileName(projectName);
+        if (!string.IsNullOrEmpty(projectCode))
+            fileName += $" {SanitizeFileName(projectCode)}";
+        fileName += ext;
+
+        var filePath = Path.Combine(dir, SanitizeFileName(fileName));
+        filePath = GetUniqueFilePath(filePath);
+
+        using var fs = new FileStream(filePath, FileMode.Create);
+        fileStream.CopyTo(fs);
+        return filePath;
+    }
+
+    public void OpenFile(string filePath)
+    {
+        if (!FileExists(filePath))
+            throw new FileNotFoundException($"Файл не найден: {filePath}");
+
+        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+        {
+            FileName = filePath,
+            UseShellExecute = true
+        });
+    }
+
+    public bool FileExists(string filePath)
+    {
+        return !string.IsNullOrEmpty(filePath) && File.Exists(filePath);
+    }
+
+    public string GetFileName(string filePath)
+    {
+        return string.IsNullOrEmpty(filePath) ? string.Empty : Path.GetFileName(filePath);
+    }
+
+    /// <summary>
+    /// Создать уникальное имя файла, добавляя (1), (2) и т.д. если файл существует
+    /// </summary>
+    private string GetUniqueFilePath(string filePath)
+    {
+        if (!File.Exists(filePath))
+            return filePath;
+
+        var dir = Path.GetDirectoryName(filePath);
+        var fileNameWithoutExt = Path.GetFileNameWithoutExtension(filePath);
+        var ext = Path.GetExtension(filePath);
+        int counter = 1;
+
+        string newFilePath;
+        do
+        {
+            newFilePath = Path.Combine(dir!, $"{fileNameWithoutExt} ({counter}){ext}");
+            counter++;
+        } while (File.Exists(newFilePath));
+
+        return newFilePath;
+    }
+}
+Код для файла IFileService.cs:
+using System;
+using System.IO;
+
+namespace AGenerator.Services;
+
+public interface IFileService
+{
+    /// <summary>
+    /// Получить путь к папке объекта
+    /// </summary>
+    string GetObjectFolderPath(int objectId, string objectName);
+    
+    /// <summary>
+    /// Получить путь к папке актов определенного типа
+    /// </summary>
+    string GetActsFolderPath(int objectId, string objectName, string actType);
+    
+    /// <summary>
+    /// Получить путь к папке схем
+    /// </summary>
+    string GetSchemasFolderPath(int objectId, string objectName);
+    
+    /// <summary>
+    /// Получить путь к папке протоколов
+    /// </summary>
+    string GetProtocolsFolderPath(int objectId, string objectName);
+    
+    /// <summary>
+    /// Получить путь к папке материалов
+    /// </summary>
+    string GetMaterialsFolderPath(int objectId, string objectName);
+    
+    /// <summary>
+    /// Убедиться, что все папки для объекта существуют
+    /// </summary>
+    void EnsureFoldersExist(int objectId, string objectName);
+    
+    /// <summary>
+    /// Получить путь к базовой папке вывода
+    /// </summary>
+    string GetBaseOutputPath();
+    
+    /// <summary>
+    /// Получить путь к шаблону Word
+    /// </summary>
+    string GetTemplatePath(string templateName);
+
+    // ==================== МЕТОДЫ СОХРАНЕНИЯ ФАЙЛОВ ====================
+
+    /// <summary>
+    /// Сохранить файл приказа: [Объект]\Приказы\Приказ на [ФИО в род. падеже] №[номер или б/н][ от дата].[ext]
+    /// </summary>
+    string SaveOrderFile(int objectId, string objectName, Stream fileStream, string employeeFullName, string orderNumber, DateTime? orderDate, string originalFileName);
+
+    /// <summary>
+    /// Сохранить файл сертификата материала: [Объект]\Материалы\[Тип]\[наименование] ([тип док] №[номер][ от дата]).[ext]
+    /// </summary>
+    string SaveMaterialCert(int objectId, string objectName, string materialType, Stream fileStream,
+        string materialName, string documentTypeDisplay, string docNumber, string docDateText, string originalFileName);
+
+    /// <summary>
+    /// Сохранить файл схемы: [Объект]\Схемы\[название] №[номер] от [дата].[ext] или просто [название]
+    /// </summary>
+    string SaveSchemaFile(int objectId, string objectName, Stream fileStream,
+        string schemaName, string schemaNumber, DateTime? schemaDate, string originalFileName);
+
+    /// <summary>
+    /// Сохранить файл протокола: [Объект]\Протоколы и заключения\[тип] №[номер] от [дата].[ext]
+    /// </summary>
+    string SaveProtocolFile(int objectId, string objectName, Stream fileStream,
+        string documentTypeDisplay, string protocolNumber, DateTime? protocolDate, string originalFileName);
+
+    /// <summary>
+    /// Сохранить файл проекта: [Объект]\Проекты\[название раздела] [шифр].[ext]
+    /// </summary>
+    string SaveProjectFile(int objectId, string objectName, Stream fileStream,
+        string projectName, string projectCode, string originalFileName);
+
+    /// <summary>
+    /// Открыть файл в ассоциированной программе
+    /// </summary>
+    void OpenFile(string filePath);
+
+    /// <summary>
+    /// Проверить существование файла
+    /// </summary>
+    bool FileExists(string filePath);
+
+    /// <summary>
+    /// Получить только имя файла из полного пути
+    /// </summary>
+    string GetFileName(string filePath);
+}
+Код для файла RegistryService.cs:
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using OfficeOpenXml;
+using AGenerator.Models;
+
+namespace AGenerator.Services;
+
+/// <summary>
+/// Сервис генерации Excel-реестров для актов с большим количеством документов.
+/// Если количество материалов, схем или протоколов превышает лимит (5 шт.),
+/// создаётся отдельный Excel-файл с реестром, а в акт вставляется ссылка на него.
+/// </summary>
+public interface IRegistryService
+{
+    /// <summary>
+    /// Создаёт реестр материалов, если их больше лимита.
+    /// Возвращает имя файла реестра или null, если реестр не нужен.
+    /// </summary>
+    string? CreateMaterialsRegistry(Act act, List<ActMaterial> actMaterials, string outputDir);
+
+    /// <summary>
+    /// Создаёт реестр приложений (схемы + протоколы), если их сумма больше лимита.
+    /// </summary>
+    string? CreateAttachmentsRegistry(Act act, List<ActSchema> actSchemas, List<Protocol> protocols, string outputDir);
+}
+
+public class RegistryService : IRegistryService
+{
+    static RegistryService()
+    {
+        // Установка лицензионного контекста для EPPlus (NonCommercial)
+        ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+    }
+
+    public string? CreateMaterialsRegistry(Act act, List<ActMaterial> actMaterials, string outputDir)
+    {
+        if (actMaterials == null || actMaterials.Count <= Settings.RegistryLimit)
+            return null;
+
+        var fileName = $"Реестр_Материалов_{SanitizeFileName(act.ActNumber)}_{DateTime.Now:yyyyMMddHHmmss}.xlsx";
+        var filePath = Path.Combine(outputDir, fileName);
+
+        using (var package = new ExcelPackage())
+        {
+            var worksheet = package.Workbook.Worksheets.Add("Реестр");
+
+            // Заголовки
+            worksheet.Cells[1, 1].Value = "№ п/п";
+            worksheet.Cells[1, 2].Value = "Наименование материала";
+            worksheet.Cells[1, 3].Value = "Ед. изм.";
+            worksheet.Cells[1, 4].Value = "Количество";
+            worksheet.Cells[1, 5].Value = "Сертификат/Паспорт №";
+            worksheet.Cells[1, 6].Value = "Дата сертификата";
+
+            // Оформление заголовков
+            using (var headerRange = worksheet.Cells[1, 1, 1, 6])
+            {
+                headerRange.Style.Font.Bold = true;
+                headerRange.Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
+                headerRange.Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.LightGray);
+            }
+
+            // Данные
+            for (int i = 0; i < actMaterials.Count; i++)
+            {
+                var actMat = actMaterials[i];
+                var mat = actMat.Material;
+                if (mat == null) continue;
+
+                worksheet.Cells[i + 2, 1].Value = i + 1;
+                worksheet.Cells[i + 2, 2].Value = mat.Name;
+                worksheet.Cells[i + 2, 3].Value = mat.Unit;
+                worksheet.Cells[i + 2, 4].Value = actMat.Quantity > 0 ? actMat.Quantity : mat.Quantity;
+                worksheet.Cells[i + 2, 5].Value = mat.CertificateNumber;
+                worksheet.Cells[i + 2, 6].Value = mat.CertificateDateText;
+            }
+
+            // Автоподбор ширины колонок
+            worksheet.Cells[worksheet.Dimension.Address].AutoFitColumns();
+            
+            package.SaveAs(new FileInfo(filePath));
+        }
+
+        return fileName;
+    }
+
+    public string? CreateAttachmentsRegistry(Act act, List<ActSchema> actSchemas, List<Protocol> protocols, string outputDir)
+    {
+        var totalDocs = (actSchemas?.Count ?? 0) + (protocols?.Count ?? 0);
+        if (totalDocs <= Settings.RegistryLimit)
+            return null;
+
+        var fileName = $"Реестр_Приложений_{SanitizeFileName(act.ActNumber)}_{DateTime.Now:yyyyMMddHHmmss}.xlsx";
+        var filePath = Path.Combine(outputDir, fileName);
+
+        using (var package = new ExcelPackage())
+        {
+            var worksheet = package.Workbook.Worksheets.Add("Реестр");
+
+            // Заголовки
+            worksheet.Cells[1, 1].Value = "№ п/п";
+            worksheet.Cells[1, 2].Value = "Тип документа";
+            worksheet.Cells[1, 3].Value = "Номер";
+            worksheet.Cells[1, 4].Value = "Дата";
+            worksheet.Cells[1, 5].Value = "Наименование";
+
+            // Оформление заголовков
+            using (var headerRange = worksheet.Cells[1, 1, 1, 5])
+            {
+                headerRange.Style.Font.Bold = true;
+                headerRange.Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
+                headerRange.Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.LightGray);
+            }
+
+            int row = 2;
+            int index = 1;
+
+            // Схемы
+            if (actSchemas != null)
+            {
+                foreach (var actSchema in actSchemas)
+                {
+                    var schema = actSchema.Schema;
+                    if (schema == null) continue;
+
+                    worksheet.Cells[row, 1].Value = index++;
+                    worksheet.Cells[row, 2].Value = "Исполнительная схема";
+                    worksheet.Cells[row, 3].Value = schema.Number;
+                    worksheet.Cells[row, 4].Value = schema.Date?.ToString("dd.MM.yyyy");
+                    worksheet.Cells[row, 5].Value = schema.Name;
+                    row++;
+                }
+            }
+
+            // Протоколы
+            if (protocols != null)
+            {
+                foreach (var protocol in protocols)
+                {
+                    worksheet.Cells[row, 1].Value = index++;
+                    worksheet.Cells[row, 2].Value = "Протокол испытаний";
+                    worksheet.Cells[row, 3].Value = protocol.Number;
+                    worksheet.Cells[row, 4].Value = protocol.Date.ToString("dd.MM.yyyy");
+                    worksheet.Cells[row, 5].Value = protocol.Laboratory;
+                    row++;
+                }
+            }
+
+            // Автоподбор ширины колонок
+            worksheet.Cells[worksheet.Dimension.Address].AutoFitColumns();
+
+            package.SaveAs(new FileInfo(filePath));
+        }
+
+        return fileName;
+    }
+
+    /// <summary>
+    /// Очистить имя файла от недопустимых символов.
+    /// </summary>
+    private static string SanitizeFileName(string fileName)
+    {
+        if (string.IsNullOrWhiteSpace(fileName))
+            return "бн";
+
+        foreach (var c in Path.GetInvalidFileNameChars())
+            fileName = fileName.Replace(c, '_');
+        return fileName.Trim('_', ' ');
+    }
+}
+Код для файла RussianNameDeclension.cs:
+using System;
+using System.Linq;
+
+namespace AGenerator.Services;
+
+/// <summary>
+/// Утилита для склонения русских ФИО в родительный падеж.
+/// Реализует базовые правила — для MVP покрывает ~80% случаев.
+/// </summary>
+public static class RussianNameDeclension
+{
+    /// <summary>
+    /// Склоняет ФИО в родительный падеж.
+    /// Формат: "Иванов Иван Иванович" → "Иванова Ивана Ивановича"
+    /// </summary>
+    public static string ToGenitiveCase(string fullName)
+    {
+        if (string.IsNullOrWhiteSpace(fullName))
+            return fullName;
+
+        var parts = fullName.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+
+        var declined = parts.Select((part, index) => DeclineWord(part, index)).ToArray();
+        return string.Join(" ", declined);
+    }
+
+    private static string DeclineWord(string word, int position)
+    {
+        if (string.IsNullOrEmpty(word))
+            return word;
+
+        var lower = word.ToLowerInvariant();
+
+        // Фамилии
+        if (position == 0)
+            return DeclineSurname(word);
+
+        // Имя
+        if (position == 1)
+            return DeclineFirstName(word);
+
+        // Отчество
+        if (position == 2)
+            return DeclinePatronymic(word);
+
+        // Остальное — не склоняем
+        return word;
+    }
+
+    private static string DeclineSurname(string word)
+    {
+        var lower = word.ToLowerInvariant();
+
+        // -ов, -ев, -ин, -ын → -ова/-ева/-ина/-ына (род. падеж совпадает с им. для мужских, но для род. падежа: -ов → -ова)
+        // Для родительного падежа мужских фамилий:
+        // Иванов → Иванова, Петров → Петрова
+        if (lower.EndsWith("ов") || lower.EndsWith("ев") || lower.EndsWith("ёв"))
+            return word + "а";
+        if (lower.EndsWith("ин") || lower.EndsWith("ын"))
+            return word + "а";
+
+        // -ий, -ой → -его (для прилагательных)
+        if (lower.EndsWith("ий"))
+            return word.Substring(0, word.Length - 2) + "его";
+        if (lower.EndsWith("ой"))
+            return word.Substring(0, word.Length - 2) + "ого";
+
+        // -ов/-ев для женских (уже оканчивается на а) — не склоняем или -ой
+        if (lower.EndsWith("ова") || lower.EndsWith("ева"))
+            return word.Substring(0, word.Length - 1) + "ой";
+
+        // Согласная на конце (мужские) — добавляем -а
+        if (!lower.EndsWith("а") && !lower.EndsWith("я") && !lower.EndsWith("е") && !lower.EndsWith("о"))
+            return word + "а";
+
+        // -а → -ы/-и
+        if (lower.EndsWith("а"))
+        {
+            var stem = word.Substring(0, word.Length - 1);
+            var lastChar = stem.Length > 0 ? stem[^1] : ' ';
+            if ("жчшщ".Contains(char.ToLowerInvariant(lastChar)))
+                return stem + "и";
+            return stem + "ы";
+        }
+
+        if (lower.EndsWith("я"))
+            return word.Substring(0, word.Length - 1) + "и";
+
+        return word;
+    }
+
+    private static string DeclineFirstName(string word)
+    {
+        var lower = word.ToLowerInvariant();
+
+        // -й (Андрей, Сергей) → -я
+        if (lower.EndsWith("й"))
+            return word.Substring(0, word.Length - 1) + "я";
+
+        // -а (Никита, Лука) → -ы
+        if (lower.EndsWith("а"))
+            return word.Substring(0, word.Length - 1) + "ы";
+
+        // Согласная на конце (мужские имена) → -а
+        if (!lower.EndsWith("а") && !lower.EndsWith("я") && !lower.EndsWith("е") && !lower.EndsWith("о") && !lower.EndsWith("и"))
+            return word + "а";
+
+        if (lower.EndsWith("я"))
+            return word.Substring(0, word.Length - 1) + "и";
+
+        if (lower.EndsWith("ь"))
+            return word.Substring(0, word.Length - 1) + "я";
+
+        return word;
+    }
+
+    private static string DeclinePatronymic(string word)
+    {
+        var lower = word.ToLowerInvariant();
+
+        // -ич → -ича
+        if (lower.EndsWith("ич"))
+            return word + "а";
+
+        // -на → -ны
+        if (lower.EndsWith("на"))
+            return word.Substring(0, word.Length - 1) + "ы";
+
+        // Согласная → -а
+        if (!lower.EndsWith("а") && !lower.EndsWith("я") && !lower.EndsWith("е") && !lower.EndsWith("о"))
+            return word + "а";
+
+        return word;
+    }
+}
+Код для файла ThemeService.cs:
+using System;
+using System.IO;
+using System.Windows;
+using System.Windows.Media;
+
+namespace AGenerator.Services;
+
+/// <summary>
+/// Сервис управления темой оформления с сохранением в файл
+/// </summary>
+public class ThemeService
+{
+    private readonly string _themeFilePath;
+
+    public ThemeService()
+    {
+        var appDir = AppDomain.CurrentDomain.BaseDirectory;
+        _themeFilePath = Path.Combine(appDir, "theme.json");
+    }
+
+    /// <summary>
+    /// Применить тему из сохранённых настроек
+    /// </summary>
+    public void ApplySavedTheme()
+    {
+        if (!File.Exists(_themeFilePath))
+            return;
+
+        try
+        {
+            var json = File.ReadAllText(_themeFilePath);
+            var theme = System.Text.Json.JsonSerializer.Deserialize<ThemeSettings>(json);
+            if (theme != null)
+                ApplyTheme(theme);
+        }
+        catch
+        {
+            // Игнорируем ошибки — используем тему по умолчанию
+        }
+    }
+
+    /// <summary>
+    /// Сохранить и применить тему
+    /// </summary>
+    public void ApplyAndSaveTheme(ThemeSettings theme)
+    {
+        ApplyTheme(theme);
+        SaveTheme(theme);
+    }
+
+    private void ApplyTheme(ThemeSettings theme)
+    {
+        var resources = Application.Current.Resources;
+
+        // Обновляем цвета градиента
+        SetResource(resources, "GradientStart", ParseColor(theme.PrimaryColor));
+        SetResource(resources, "GradientEnd", ParseColor(theme.SecondaryColor));
+        SetResource(resources, "AccentColor", ParseColor(theme.AccentColor));
+
+        // Вычисляем контрастный цвет текста на основе яркости градиента
+        var textColor = CalculateContrastTextColor(theme.PrimaryColor, theme.SecondaryColor);
+        var secondaryTextColor = CalculateSecondaryTextColor(textColor);
+
+        // Обновляем кисти текста (обновляем цвет внутри существующих кистей)
+        UpdateBrushColor(resources, "TextPrimaryBrush", ParseColor(textColor));
+        UpdateBrushColor(resources, "TextSecondaryBrush", ParseColor(secondaryTextColor));
+        SetResource(resources, "TextPrimary", ParseColor(textColor));
+        SetResource(resources, "TextSecondary", ParseColor(secondaryTextColor));
+
+        // Обновляем градиент
+        var gradient = new LinearGradientBrush
+        {
+            StartPoint = new Point(0, 0),
+            EndPoint = new Point(1, 1)
+        };
+        gradient.GradientStops.Add(new GradientStop(ParseColor(theme.PrimaryColor), 0));
+        gradient.GradientStops.Add(new GradientStop(ParseColor(theme.SecondaryColor), 1));
+        SetResource(resources, "MainGradient", gradient);
+
+        // Обновляем кисти акцентного цвета (для кнопок)
+        var accentColor = ParseColor(theme.AccentColor);
+        UpdateBrushColor(resources, "AccentBrush", accentColor);
+        UpdateBrushColor(resources, "AccentLightBrush", Color.FromArgb(0x40, accentColor.R, accentColor.G, accentColor.B));
+
+        // Вычисляем контрастный цвет текста для акцентных кнопок
+        var accentTextBrushColor = CalculateContrastTextColorForButton(accentColor);
+        UpdateBrushColor(resources, "AccentTextBrush", accentTextBrushColor);
+
+        // Обновляем стеклянные кисти (полупрозрачный белый поверх градиента)
+        UpdateBrushColor(resources, "GlassBrush", Color.FromArgb(0x80, 0xFF, 0xFF, 0xFF));
+        UpdateBrushColor(resources, "GlassBorderBrush", Color.FromArgb(0x40, 0xFF, 0xFF, 0xFF));
+    }
+
+    private void SaveTheme(ThemeSettings theme)
+    {
+        try
+        {
+            var json = System.Text.Json.JsonSerializer.Serialize(theme, new System.Text.Json.JsonSerializerOptions
+            {
+                WriteIndented = true
+            });
+            File.WriteAllText(_themeFilePath, json);
+        }
+        catch
+        {
+            // Игнорируем ошибки сохранения
+        }
+    }
+
+    private static void SetResource(ResourceDictionary resources, string key, object value)
+    {
+        if (resources.Contains(key))
+            resources[key] = value;
+    }
+
+    /// <summary>
+    /// Обновляет цвет кисти в ресурсах. Создаёт новую кисть и заменяет старую.
+    /// </summary>
+    private static void UpdateBrushColor(ResourceDictionary resources, string brushKey, Color newColor)
+    {
+        if (resources.Contains(brushKey))
+        {
+            resources[brushKey] = new SolidColorBrush(newColor);
+        }
+    }
+
+    /// <summary>
+    /// Вычисляет контрастный цвет текста для акцентных кнопок.
+    /// Для тёмных акцентов — белый текст, для светлых — тёмный.
+    /// </summary>
+    private static Color CalculateContrastTextColorForButton(Color accentColor)
+    {
+        var luminance = (0.299 * accentColor.R + 0.587 * accentColor.G + 0.114 * accentColor.B) / 255.0;
+        
+        // Если акцент тёмный (яркость < 0.5) — белый текст
+        // Если акцент светлый — тёмный текст
+        if (luminance < 0.5)
+        {
+            return Colors.White;
+        }
+        else
+        {
+            return Color.FromRgb(0x1A, 0x20, 0x2C); // Тёмный текст
+        }
+    }
+
+    private static Color ParseColor(string hex)
+    {
+        try
+        {
+            return (Color)ColorConverter.ConvertFromString(hex);
+        }
+        catch
+        {
+            return Colors.White;
+        }
+    }
+
+    /// <summary>
+    /// Вычисляет контрастный цвет текста на основе яркости цветов градиента.
+    /// Для светлых тем — тёмный текст, для тёмных — светлый.
+    /// </summary>
+    private static string CalculateContrastTextColor(string primaryColor, string secondaryColor)
+    {
+        var primary = ParseColor(primaryColor);
+        var secondary = ParseColor(secondaryColor);
+
+        // Вычисляем среднюю яркость обоих цветов (формула воспринимаемой яркости)
+        var primaryLuminance = (0.299 * primary.R + 0.587 * primary.G + 0.114 * primary.B) / 255.0;
+        var secondaryLuminance = (0.299 * secondary.R + 0.587 * secondary.G + 0.114 * secondary.B) / 255.0;
+        var avgLuminance = (primaryLuminance + secondaryLuminance) / 2.0;
+
+        // Если яркость меньше 0.5 — тема тёмная, используем светлый текст
+        // Иначе — светлая тема, используем тёмный текст
+        if (avgLuminance < 0.5)
+        {
+            return "#F0F0F0"; // Светлый текст для тёмных тем
+        }
+        else
+        {
+            return "#1A202C"; // Тёмный текст для светлых тем
+        }
+    }
+
+    /// <summary>
+    /// Вычисляет вторичный цвет текста на основе основного.
+    /// Делает его чуть светлее/темнее для иерархии.
+    /// </summary>
+    private static string CalculateSecondaryTextColor(string primaryTextColor)
+    {
+        var color = ParseColor(primaryTextColor);
+
+        // Определяем, светлая тема или тёмная
+        var luminance = (0.299 * color.R + 0.587 * color.G + 0.114 * color.B) / 255.0;
+
+        if (luminance > 0.5)
+        {
+            // Светлая тема — делаем текст чуть светлее
+            return "#4A5568";
+        }
+        else
+        {
+            // Тёмная тема — делаем текст чуть темнее
+            return "#CBD5E0";
+        }
+    }
+}
+
+/// <summary>
+/// Настройки темы для сохранения
+/// </summary>
+public class ThemeSettings
+{
+    public string PrimaryColor { get; set; } = "#4FC3F7";
+    public string SecondaryColor { get; set; } = "#2196F3";
+    public string AccentColor { get; set; } = "#1976D2";
+    public string TextColor { get; set; } = "#2D3748";
+}
+Код для файла WordDocumentService.cs:
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
+using DocumentFormat.OpenXml;
+using DocumentFormat.OpenXml.Packaging;
+using DocumentFormat.OpenXml.Wordprocessing;
+using AGenerator.Models;
+
+namespace AGenerator.Services;
+
+/// <summary>
+/// Сервис генерации Word-документов актов на основе шаблонов .docx.
+/// Использует DocumentFormat.OpenXml — не требует установленного Word.
+/// </summary>
+public class WordDocumentService
+{
+    private readonly string _baseOutputPath;
+    private readonly string _templatesPath;
+    private readonly IRegistryService _registryService;
+
+    public WordDocumentService(string templatesPath, string baseOutputPath, IRegistryService registryService)
+    {
+        _templatesPath = templatesPath;
+        _baseOutputPath = baseOutputPath;
+        _registryService = registryService;
+
+        // Гарантируем существование базовой папки Output
+        Directory.CreateDirectory(Path.Combine(_baseOutputPath, "Output"));
+    }
+
+    /// <summary>
+    /// Сгенерировать документ акта из шаблона.
+    /// </summary>
+    /// <param name="act">Акт для генерации</param>
+    /// <returns>Путь к созданному файлу</returns>
+    public async Task<string> GenerateActAsync(Act act)
+    {
+        var templateName = GetTemplateName(act.Type);
+        var templatePath = Path.Combine(_templatesPath, templateName);
+
+        if (!File.Exists(templatePath))
+            throw new FileNotFoundException($"Шаблон не найден: {templatePath}");
+
+        // Формируем путь: [BasePath]\Output\[Имя_Объекта]\Акты\[Тип]\[YYYY-MM-DD_HH-mm-ss]\
+        var objectFolderName = SanitizeFileName(act.ConstructionObject?.Name ?? $"Объект_{act.ConstructionObjectId}");
+        var timestamp = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss");
+
+        var outputDir = Path.Combine(_baseOutputPath, "Output", objectFolderName, "Акты", act.Type, timestamp);
+        Directory.CreateDirectory(outputDir);
+
+        var safeActNumber = string.IsNullOrWhiteSpace(act.ActNumber) ? "бн" : SanitizeFileName(act.ActNumber);
+        var safeWorkName = SanitizeFileName(act.WorkName);
+        if (safeWorkName.Length > 50)
+            safeWorkName = safeWorkName[..50];
+
+        var fileName = $"{act.Type}_{safeActNumber}_{safeWorkName}.docx";
+        var outputPath = Path.Combine(outputDir, fileName);
+
+        await Task.Run(() =>
+        {
+            File.Copy(templatePath, outputPath, true);
+
+            // 1. Проверяем необходимость создания реестров
+            string? materialsRegistryName = null;
+            string? attachmentsRegistryName = null;
+
+            // Материалы
+            if (act.ActMaterials != null && act.ActMaterials.Count > Models.Settings.RegistryLimit)
+            {
+                materialsRegistryName = _registryService.CreateMaterialsRegistry(act, act.ActMaterials, outputDir);
+            }
+
+            // Приложения (Схемы + Протоколы)
+            var totalAttachments = (act.ActSchemas?.Count ?? 0) + (act.Protocols?.Count ?? 0);
+            if (totalAttachments > Models.Settings.RegistryLimit)
+            {
+                attachmentsRegistryName = _registryService.CreateAttachmentsRegistry(act, act.ActSchemas!, act.Protocols!, outputDir);
+            }
+
+            // 2. Формируем данные для шаблона, учитывая реестры
+            FillWordTemplate(outputPath, act, materialsRegistryName, attachmentsRegistryName);
+        });
+
+        return outputPath;
+    }
+
+    /// <summary>
+    /// Заполнить Word-документ данными из акта.
+    /// </summary>
+    private void FillWordTemplate(string filePath, Act act, string? materialsRegistryName, string? attachmentsRegistryName)
+    {
+        using (var doc = WordprocessingDocument.Open(filePath, true))
+        {
+            var body = doc.MainDocumentPart?.Document?.Body;
+            if (body == null)
+                return;
+
+            // Собираем закладки из Body (с компарером без учёта регистра)
+            var bookmarks = body.Descendants<BookmarkStart>()
+                .Where(b => b.Name != null)
+                .ToDictionary(b => b.Name!.Value, b => b, StringComparer.OrdinalIgnoreCase);
+
+            // Добавляем закладки из колонтитулов (header/footer)
+            foreach (var headerPart in doc.MainDocumentPart.HeaderParts)
+            {
+                var headerBookmarks = headerPart.RootElement.Descendants<BookmarkStart>()
+                    .Where(b => b.Name != null);
+                foreach (var bm in headerBookmarks)
+                {
+                    if (!bookmarks.ContainsKey(bm.Name!.Value))
+                        bookmarks[bm.Name!.Value] = bm;
+                }
+            }
+
+            foreach (var footerPart in doc.MainDocumentPart.FooterParts)
+            {
+                var footerBookmarks = footerPart.RootElement.Descendants<BookmarkStart>()
+                    .Where(b => b.Name != null);
+                foreach (var bm in footerBookmarks)
+                {
+                    if (!bookmarks.ContainsKey(bm.Name!.Value))
+                        bookmarks[bm.Name!.Value] = bm;
+                }
+            }
+
+            // Отладка: выводим все найденные закладки
+            System.Diagnostics.Debug.WriteLine($"[WordDocumentService] Найдено закладок: {bookmarks.Count}");
+            foreach (var bk in bookmarks.Keys.OrderBy(k => k))
+            {
+                System.Diagnostics.Debug.WriteLine($"  - {bk}");
+            }
+
+            var data = GetActDataDictionary(act, materialsRegistryName, attachmentsRegistryName);
+
+            foreach (var kvp in data)
+            {
+                if (bookmarks.TryGetValue(kvp.Key, out var bookmark))
+                {
+                    ReplaceBookmarkText(bookmark, kvp.Value);
+                    System.Diagnostics.Debug.WriteLine($"[WordDocumentService] Заменено: {kvp.Key} → \"{kvp.Value}\"");
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine($"[WordDocumentService] НЕ НАЙДЕНА закладка: {kvp.Key}");
+                }
+            }
+
+            // Специфическая очистка для АООК/АРООКС
+            if (act.Type is "АООК" or "АРООКС")
+            {
+                RemoveEmptyTablesForAOOK(body, act);
+            }
+
+            // Специфическая очистка для АОУСИТО
+            if (act.Type == "АОУСИТО")
+            {
+                RemoveEmptyBlocksForAOUSITO(body, act);
+            }
+
+            doc.MainDocumentPart!.Document.Save();
+        }
+    }
+
+    /// <summary>
+    /// Сформировать словарь данных для замены закладок.
+    /// Ключи должны точно соответствовать именам закладок в шаблоне .docx.
+    /// </summary>
+    private Dictionary<string, string> GetActDataDictionary(Act act, string? materialsRegistryName, string? attachmentsRegistryName)
+    {
+        var data = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        // ==================== ОБЪЕКТ И РЕКВИЗИТЫ ====================
+        var obj = act.ConstructionObject;
+        if (obj != null)
+        {
+            data["Наименование_объекта"] = obj.Name;
+            data["реквизиты_заказчика"] = obj.CustomerRequisites;
+            data["реквизиты_генподрядчика"] = obj.ContractorRequisites;
+            data["реквизиты_проектировщика"] = obj.DesignerRequisites;
+        }
+        else
+        {
+            data["Наименование_объекта"] = "";
+            data["реквизиты_заказчика"] = "";
+            data["реквизиты_генподрядчика"] = "";
+            data["реквизиты_проектировщика"] = "";
+        }
+
+        // ==================== НОМЕР И ДАТА АКТА ====================
+        data["Номер_акта"] = act.ActNumber;
+
+        var actDate = act.ActDate;
+        data["день_а"] = actDate.Day.ToString("D2");
+        data["месяц_а"] = GetMonthName(actDate.Month);
+        data["год_а"] = actDate.Year.ToString();
+
+        // ==================== ПОДПИСАНТЫ (ФИО и Должности) ====================
+
+        // СК Заказчика (ТНЗ)
+        data["ФИО_ТНЗ"] = act.CustomerRep?.FullName ?? "";
+        data["Должность_ТНЗ"] = act.CustomerRep?.Position ?? "";
+
+        // Генподрядчик (Г)
+        data["ФИО_Г"] = act.GenContractorRep?.FullName ?? "";
+        data["Должность_Г"] = act.GenContractorRep?.Position ?? "";
+
+        // ТК Генподрядчика (ТНГ)
+        data["ФИО_ТНГ"] = act.GenContractorSkRep?.FullName ?? "";
+        data["Должность_ТНГ"] = act.GenContractorSkRep?.Position ?? "";
+
+        // Проектировщик (Пр)
+        data["ФИО_Пр"] = act.DesignerRep?.FullName ?? "";
+        data["Должность_Пр"] = act.DesignerRep?.Position ?? "";
+
+        // Подрядчик (Пд)
+        data["ФИО_Пд"] = act.ContractorRep?.FullName ?? "";
+        data["Должность_Пд"] = act.ContractorRep?.Position ?? "";
+
+        // Иные лица (И1, И2, И3)
+        data["ФИО_И1"] = act.OtherPerson1?.FullName ?? "";
+        data["Должность_И1"] = act.OtherPerson1?.Position ?? "";
+
+        data["ФИО_И2"] = act.OtherPerson2?.FullName ?? "";
+        data["Должность_И2"] = act.OtherPerson2?.Position ?? "";
+
+        data["ФИО_И3"] = act.OtherPerson3?.FullName ?? "";
+        data["Должность_И3"] = act.OtherPerson3?.Position ?? "";
+
+        // ==================== РАБОТЫ ====================
+        data["Наименование_работ"] = act.WorkName;
+        data["Наим_пр_докум"] = act.ProjectDocumentation;
+
+        // Материалы и Схемы (через промежуточные таблицы)
+        data["Наименование_материалов"] = FormatMaterials(act, materialsRegistryName);
+        data["Исполнительные_схемы"] = FormatSchemas(act, attachmentsRegistryName);
+
+        // ==================== ДАТЫ РАБОТ ====================
+
+        // Начало
+        if (act.WorkStartDate.HasValue)
+        {
+            data["день_н"] = act.WorkStartDate.Value.Day.ToString("D2");
+            data["месяц_н"] = GetMonthName(act.WorkStartDate.Value.Month);
+            data["год_н"] = act.WorkStartDate.Value.Year.ToString();
+        }
+        else
+        {
+            data["день_н"] = "";
+            data["месяц_н"] = "";
+            data["год_н"] = "";
+        }
+
+        // Окончание
+        if (act.WorkEndDate.HasValue)
+        {
+            data["день_о"] = act.WorkEndDate.Value.Day.ToString("D2");
+            data["месяц_о"] = GetMonthName(act.WorkEndDate.Value.Month);
+            data["год_о"] = act.WorkEndDate.Value.Year.ToString();
+        }
+        else
+        {
+            data["день_о"] = "";
+            data["месяц_о"] = "";
+            data["год_о"] = "";
+        }
+
+        // ==================== ПРОЧЕЕ ====================
+        data["выполнено_с"] = act.StandardReference;
+        data["Наименование_последующих_работ"] = act.SubsequentWork;
+        data["Доп_сведения"] = act.AdditionalInfo;
+        data["экз"] = act.CopiesCount?.ToString() ?? "";
+
+        // ==================== ПРИЛОЖЕНИЯ ====================
+        data["Приложения"] = FormatAppendix(act, materialsRegistryName, attachmentsRegistryName);
+        data["Приложения_вручную"] = act.Appendix;
+
+        // Наименование исполнителя (берём Company из подрядчика или генподрядчика)
+        var executorName = act.ContractorRep?.OrganizationRequisites
+            ?? act.GenContractorRep?.OrganizationRequisites
+            ?? act.ConstructionObject?.Contractor
+            ?? "";
+        data["н_исполнителя"] = executorName;
+        data["Наименование_исполнителя"] = executorName;
+
+        // Блок АООК
+        data["использование_по_назначению"] = act.UsageAsIntended;
+        data["процент_нагрузки"] = act.LoadPercentage;
+        data["условия_полного_нагружения"] = act.FullLoadConditions;
+
+        return data;
+    }
+
+    /// <summary>
+    /// Форматирование материалов для подстановки в закладку.
+    /// </summary>
+    private static string FormatMaterials(Act act, string? materialsRegistryName)
+    {
+        if (act.ActMaterials == null || act.ActMaterials.Count == 0)
+            return "";
+
+        // Если создан реестр, возвращаем ссылку на него
+        if (!string.IsNullOrEmpty(materialsRegistryName))
+        {
+            return $"см. Реестр материалов ({materialsRegistryName})";
+        }
+
+        // Иначе перечисляем текстом
+        return string.Join("; ", act.ActMaterials
+            .Where(am => am.Material != null)
+            .Select(am => $"{am.Material.Name} №{am.Material.CertificateNumber}"));
+    }
+
+    /// <summary>
+    /// Форматирование схем для подстановки в закладку.
+    /// </summary>
+    private static string FormatSchemas(Act act, string? attachmentsRegistryName)
+    {
+        if (act.ActSchemas == null || act.ActSchemas.Count == 0)
+            return "";
+
+        // Если создан реестр приложений, возвращаем ссылку на него
+        if (!string.IsNullOrEmpty(attachmentsRegistryName))
+        {
+            return $"см. Реестр приложений ({attachmentsRegistryName})";
+        }
+
+        // Иначе перечисляем текстом
+        return string.Join("; ", act.ActSchemas
+            .Where(asc => asc.Schema != null)
+            .Select(asc => $"{asc.Schema.Number} от {asc.Schema.Date:dd.MM.yyyy}"));
+    }
+
+    /// <summary>
+    /// Форматирование поля "Приложения" с учётом реестров.
+    /// Объединяет схемы, протоколы, материалы и ручные приложения в одну строку.
+    /// </summary>
+    private static string FormatAppendix(Act act, string? materialsRegistryName, string? attachmentsRegistryName)
+    {
+        var appsList = new List<string>();
+
+        // 1. Исполнительные схемы
+        if (act.ActSchemas != null && act.ActSchemas.Any())
+        {
+            if (!string.IsNullOrEmpty(attachmentsRegistryName))
+            {
+                appsList.Add($"Исполнительные схемы - см. Реестр приложений ({attachmentsRegistryName})");
+            }
+            else
+            {
+                var schemasStr = string.Join("; ", act.ActSchemas
+                    .Where(asc => asc.Schema != null)
+                    .Select(asc => $"{asc.Schema.Number} от {asc.Schema.Date:dd.MM.yyyy}"));
+                appsList.Add($"Исполнительные схемы: {schemasStr}");
+            }
+        }
+
+        // 2. Протоколы испытаний
+        if (act.Protocols != null && act.Protocols.Any())
+        {
+            if (!string.IsNullOrEmpty(attachmentsRegistryName))
+            {
+                // Протоколы включены в общий реестр приложений, не дублируем
+            }
+            else
+            {
+                var protocolsStr = string.Join("; ", act.Protocols
+                    .Select(p => $"{p.Number} от {p.Date:dd.MM.yyyy} — {p.Laboratory}"));
+                appsList.Add($"Протоколы испытаний: {protocolsStr}");
+            }
+        }
+
+        // 3. Материалы
+        if (act.ActMaterials != null && act.ActMaterials.Any())
+        {
+            if (!string.IsNullOrEmpty(materialsRegistryName))
+            {
+                appsList.Add($"Сертификаты на материалы - см. Реестр материалов ({materialsRegistryName})");
+            }
+            else
+            {
+                // Показываем первые 5, если больше
+                var matsStr = string.Join("; ", act.ActMaterials
+                    .Take(Models.Settings.RegistryLimit)
+                    .Where(am => am.Material != null)
+                    .Select(am => $"{am.Material.Name} №{am.Material.CertificateNumber}"));
+
+                if (act.ActMaterials.Count > Models.Settings.RegistryLimit)
+                    matsStr += " и др.";
+                
+                appsList.Add($"Материалы: {matsStr}");
+            }
+        }
+
+        // 4. Ручные приложения
+        if (!string.IsNullOrWhiteSpace(act.Appendix))
+        {
+            appsList.Add(act.Appendix);
+        }
+
+        return string.Join("\n", appsList);
+    }
+
+    /// <summary>
+    /// Получить название месяца прописью в родительном падеже.
+    /// </summary>
+    private static string GetMonthName(int month)
+    {
+        var months = new[]
+        {
+            "", "января", "февраля", "марта", "апреля", "мая", "июня",
+            "июля", "августа", "сентября", "октября", "ноября", "декабря"
+        };
+        return months[month];
+    }
+
+    /// <summary>
+    /// Заменить всё содержимое закладки новым текстом.
+    /// Сохраняет форматирование (шрифт, размер, начертание) из первого Run закладки.
+    /// </summary>
+    private static void ReplaceBookmarkText(BookmarkStart bookmark, string text)
+    {
+        var parent = bookmark.Parent;
+        if (parent == null) return;
+
+        // Находим соответствующий BookmarkEnd по ID
+        var bookmarkEnd = parent.Descendants<BookmarkEnd>()
+            .FirstOrDefault(be => be.Id != null && be.Id.Value == bookmark.Id?.Value);
+
+        if (bookmarkEnd == null)
+        {
+            // Fallback: если BookmarkEnd не найден, просто вставляем после BookmarkStart
+            var fallbackRun = new Run(new Text(text));
+            bookmark.InsertAfterSelf(fallbackRun);
+            return;
+        }
+
+        // Собираем все узлы между BookmarkStart и BookmarkEnd
+        var nodesToDelete = new List<OpenXmlElement>();
+        RunProperties? originalProps = null;
+        var currentNode = bookmark.NextSibling();
+
+        while (currentNode != null && currentNode != bookmarkEnd)
+        {
+            nodesToDelete.Add(currentNode);
+
+            // Запоминаем форматирование первого найденного Run
+            if (originalProps == null && currentNode is Run run)
+            {
+                originalProps = run.RunProperties?.CloneNode(true) as RunProperties;
+            }
+
+            currentNode = currentNode.NextSibling();
+        }
+
+        // Удаляем найденные узлы (с конца к началу, чтобы не сбить ссылки)
+        for (var i = nodesToDelete.Count - 1; i >= 0; i--)
+        {
+            nodesToDelete[i].Remove();
+        }
+
+        // Создаём новый Run с тем же форматированием
+        var newRun = new Run(new Text(text));
+        if (originalProps != null)
+        {
+            newRun.RunProperties = originalProps;
+        }
+
+        bookmark.InsertAfterSelf(newRun);
+    }
+
+    /// <summary>
+    /// Удалить пустые таблицы для АООК/АРООКС.
+    /// </summary>
+    private static void RemoveEmptyTablesForAOOK(Body body, Act act)
+    {
+        if (string.IsNullOrWhiteSpace(act.SubsequentWork))
+            RemoveTableByBookmark(body, "Последующие_работы");
+
+        if (string.IsNullOrWhiteSpace(act.LoadPercentage))
+            RemoveTableByBookmark(body, "Нагрузка");
+
+        if (string.IsNullOrWhiteSpace(act.FullLoadConditions))
+            RemoveTableByBookmark(body, "Условия_нагружения");
+
+        if (string.IsNullOrWhiteSpace(act.UsageAsIntended))
+            RemoveTableByBookmark(body, "По_назначению");
+    }
+
+    /// <summary>
+    /// Удалить пустые блоки для АОУСИТО.
+    /// </summary>
+    private static void RemoveEmptyBlocksForAOUSITO(Body body, Act act)
+    {
+        if (string.IsNullOrWhiteSpace(act.UsageAsIntended))
+            RemoveTableByBookmark(body, "По_назначению");
+
+        if (string.IsNullOrWhiteSpace(act.LoadPercentage))
+            RemoveTableByBookmark(body, "Нагрузка");
+    }
+
+    /// <summary>
+    /// Найти таблицу, содержащую закладку, и удалить её.
+    /// </summary>
+    private static void RemoveTableByBookmark(Body body, string bookmarkName)
+    {
+        var bookmark = body.Descendants<BookmarkStart>()
+            .FirstOrDefault(b => b.Name != null && string.Equals(b.Name.Value, bookmarkName, StringComparison.OrdinalIgnoreCase));
+
+        if (bookmark != null)
+        {
+            var table = bookmark.Ancestors<Table>().FirstOrDefault();
+            table?.Remove();
+        }
+    }
+
+    /// <summary>
+    /// Получить имя файла шаблона по типу акта.
+    /// </summary>
+    private static string GetTemplateName(string actType)
+    {
+        return actType switch
+        {
+            "АОСР" => "АОСР.docx",
+            "АООК" => "АООК.docx",
+            "АОУСИТО" => "АОУСИТО.docx",
+            "АВК" => "АВК.docx",
+            "АГИ" => "АГИ.docx",
+            "АИИО" => "АИИО.docx",
+            "АОГРОКС" => "АОГРОКС.docx",
+            "АОСР3" => "АОСР3.docx",
+            "АПрОб" => "АПрОб.docx",
+            "АРООКС" => "АРООКС.docx",
+            "ОтЭфД" => "ОтЭфД.docx",
+            "АОСР_старый" => "АОСР_старый.docx",
+            "АООК_старый" => "АООК_старый.docx",
+            _ => "АОСР.docx"
+        };
+    }
+
+    /// <summary>
+    /// Очистить имя файла от недопустимых символов.
+    /// </summary>
+    private static string SanitizeFileName(string fileName)
+    {
+        foreach (var c in Path.GetInvalidFileNameChars())
+            fileName = fileName.Replace(c, '_');
+        return fileName.Trim('_', ' ');
+    }
+}
+Код для файла DataGridColumnWidthService.cs:
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
+using System.Linq;
+using System.Text.Json;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Data;
+using System.Windows.Media;
+
+namespace AGenerator.Services;
+
+/// <summary>
+/// Сервис сохранения и восстановления ширины столбцов DataGrid.
+/// </summary>
+public class DataGridColumnWidthService
+{
+    private readonly string _storagePath;
+    private Dictionary<string, Dictionary<string, double>> _savedWidths;
+
+    public DataGridColumnWidthService()
+    {
+        var appDir = AppDomain.CurrentDomain.BaseDirectory;
+        _storagePath = Path.Combine(appDir, "column_widths.json");
+        _savedWidths = LoadSavedWidths();
+    }
+
+    /// <summary>
+    /// Восстановить сохранённые ширины столбцов для DataGrid.
+    /// </summary>
+    public void RestoreColumnWidths(DataGrid dataGrid, string gridName)
+    {
+        if (!_savedWidths.ContainsKey(gridName)) return;
+
+        var gridWidths = _savedWidths[gridName];
+
+        foreach (var column in dataGrid.Columns)
+        {
+            var header = column.Header?.ToString();
+            if (header != null && gridWidths.ContainsKey(header))
+            {
+                column.Width = gridWidths[header];
+            }
+        }
+    }
+
+    /// <summary>
+    /// Сохранить текущие ширины столбцов DataGrid.
+    /// </summary>
+    public void SaveColumnWidths(DataGrid dataGrid, string gridName)
+    {
+        if (!_savedWidths.ContainsKey(gridName))
+        {
+            _savedWidths[gridName] = new Dictionary<string, double>();
+        }
+
+        var gridWidths = _savedWidths[gridName];
+
+        foreach (var column in dataGrid.Columns)
+        {
+            var header = column.Header?.ToString();
+            if (header != null)
+            {
+                gridWidths[header] = column.ActualWidth;
+            }
+        }
+
+        SaveWidths();
+    }
+
+    /// <summary>
+    /// Автоматически подобрать ширину столбцов на основе содержимого.
+    /// Ширина = максимальная ширина текста (заголовок + ячейки), но не более maxWidth.
+    /// </summary>
+    public void AutoFitColumns(DataGrid dataGrid, double maxWidth = 300)
+    {
+        // Создаём FormattedText для измерения
+        var typeface = new Typeface(new FontFamily("GOST"), FontStyles.Normal, FontWeights.Bold, FontStretches.Normal);
+        double headerFontSize = 13;
+        double cellFontSize = 12;
+        var pixelsPerDip = VisualTreeHelper.GetDpi(dataGrid).PixelsPerDip;
+
+        foreach (var column in dataGrid.Columns)
+        {
+            double maxWidthFound = 0;
+
+            // Измеряем ширину заголовка (жирный шрифт 13px)
+            var headerText = column.Header?.ToString() ?? "";
+            var headerFormattedText = new FormattedText(
+                headerText,
+                CultureInfo.CurrentCulture,
+                FlowDirection.LeftToRight,
+                typeface,
+                headerFontSize,
+                Brushes.Black,
+                new NumberSubstitution(),
+                pixelsPerDip);
+
+            maxWidthFound = headerFormattedText.Width + 16; // + отступы
+
+            // Измеряем содержимое ячеек в зависимости от типа колонки
+            foreach (var item in dataGrid.Items)
+            {
+                string cellText = null;
+
+                if (column is DataGridTextColumn textColumn)
+                {
+                    var binding = textColumn.Binding as Binding;
+                    if (binding != null && !string.IsNullOrEmpty(binding.Path?.Path))
+                    {
+                        var propertyName = binding.Path.Path;
+                        var value = item?.GetType().GetProperty(propertyName)?.GetValue(item);
+
+                        // Для enum значений используем описание или ToString
+                        if (value != null && value.GetType().IsEnum)
+                        {
+                            // Пробуем получить DisplayAttribute или DescriptionAttribute
+                            var field = value.GetType().GetField(value.ToString());
+                            var displayAttr = field?.GetCustomAttributes(typeof(System.ComponentModel.DataAnnotations.DisplayAttribute), false)
+                                .FirstOrDefault() as System.ComponentModel.DataAnnotations.DisplayAttribute;
+                            
+                            if (displayAttr != null)
+                            {
+                                cellText = displayAttr.GetName();
+                            }
+                            else
+                            {
+                                // Для RepresentativeType используем кастомное преобразование
+                                cellText = GetEnumDisplayText(value);
+                            }
+                        }
+                        else if (binding.Converter != null)
+                        {
+                            try
+                            {
+                                cellText = binding.Converter.Convert(value, typeof(string),
+                                    binding.ConverterParameter,
+                                    CultureInfo.CurrentCulture)?.ToString();
+                            }
+                            catch
+                            {
+                                cellText = value?.ToString();
+                            }
+                        }
+                        else
+                        {
+                            cellText = value?.ToString();
+                        }
+                    }
+                }
+                else if (column is DataGridComboBoxColumn comboColumn)
+                {
+                    var binding = comboColumn.SelectedValueBinding as Binding;
+                    if (binding != null && !string.IsNullOrEmpty(binding.Path?.Path))
+                    {
+                        var propertyName = binding.Path.Path;
+                        cellText = item?.GetType().GetProperty(propertyName)?.GetValue(item)?.ToString();
+                    }
+                }
+                else if (column is DataGridTemplateColumn templateColumn)
+                {
+                    // Для шаблонных колонок используем минимальную ширину
+                    maxWidthFound = Math.Max(maxWidthFound, 60);
+                    continue;
+                }
+
+                if (!string.IsNullOrEmpty(cellText))
+                {
+                    var cellTypeface = new Typeface(new FontFamily("GOST"), FontStyles.Normal, FontWeights.Normal, FontStretches.Normal);
+                    var formattedText = new FormattedText(
+                        cellText,
+                        CultureInfo.CurrentCulture,
+                        FlowDirection.LeftToRight,
+                        cellTypeface,
+                        cellFontSize,
+                        Brushes.Black,
+                        new NumberSubstitution(),
+                        pixelsPerDip);
+
+                    var width = formattedText.Width + 16;
+                    if (width > maxWidthFound) maxWidthFound = width;
+                }
+            }
+
+            // Ограничиваем максимальной шириной
+            column.Width = Math.Min(maxWidthFound, maxWidth);
+        }
+    }
+
+    private Dictionary<string, Dictionary<string, double>> LoadSavedWidths()
+    {
+        try
+        {
+            if (File.Exists(_storagePath))
+            {
+                var json = File.ReadAllText(_storagePath);
+                return JsonSerializer.Deserialize<Dictionary<string, Dictionary<string, double>>>(json)
+                       ?? new Dictionary<string, Dictionary<string, double>>();
+            }
+        }
+        catch
+        {
+            // Игнорируем ошибки
+        }
+
+        return new Dictionary<string, Dictionary<string, double>>();
+    }
+
+    private void SaveWidths()
+    {
+        try
+        {
+            var json = JsonSerializer.Serialize(_savedWidths, new JsonSerializerOptions
+            {
+                WriteIndented = true
+            });
+            File.WriteAllText(_storagePath, json);
+        }
+        catch
+        {
+            // Игнорируем ошибки сохранения
+        }
+    }
+
+    /// <summary>
+    /// Получить отображаемый текст для enum значения.
+    /// </summary>
+    private static string GetEnumDisplayText(object enumValue)
+    {
+        if (enumValue == null) return "";
+
+        var typeName = enumValue.GetType().Name;
+        var valueName = enumValue.ToString();
+
+        // RepresentativeType -> конвертер
+        if (typeName == "RepresentativeType")
+        {
+            return valueName switch
+            {
+                "SK_Zakazchika" => "СК Заказчика",
+                "GenPodryadchik" => "Ген. Подрядчик",
+                "SK_GenPodryadchika" => "СК Ген. Подрядчика",
+                "Podryadchik" => "Подрядчик",
+                "AvtorskiyNadzor" => "Авторский Надзор",
+                "InoeLico" => "Иное лицо",
+                _ => valueName
+            };
+        }
+
+        // MaterialDocType
+        if (typeName == "MaterialDocType")
+        {
+            return valueName switch
+            {
+                "DeclarationOfConformity" => "Декларация о соответствии",
+                "QualityDocument" => "Документ о качестве",
+                "RefusalLetter" => "Отказное письмо",
+                "Passport" => "Паспорт",
+                "QualityPassport" => "Паспорт качества",
+                "SanitaryEpidemiologicalConclusion" => "Сан.-эпид. заключение",
+                "Certificate" => "Свидетельство",
+                "StateRegistrationCertificate" => "Свидетельство о гос.регистрации",
+                "CertificateOfConformity" => "Сертификат соответствия",
+                "TechnicalPassport" => "Технический паспорт",
+                _ => valueName
+            };
+        }
+
+        // ProtocolDocType
+        if (typeName == "ProtocolDocType")
+        {
+            return valueName switch
+            {
+                "TestProtocol" => "Протокол испытаний",
+                "Conclusion" => "Заключение",
+                _ => valueName
+            };
+        }
+
+        return valueName;
+    }
+}

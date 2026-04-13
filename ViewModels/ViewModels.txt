@@ -1,0 +1,3060 @@
+Код для файла ActsViewModel.cs:
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
+using System.Windows;
+using AGenerator.Database;
+using AGenerator.Models;
+using AGenerator.Services;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using Microsoft.EntityFrameworkCore;
+
+namespace AGenerator.ViewModels;
+
+/// <summary>
+/// ViewModel для управления актами строительства с inline-редактированием
+/// </summary>
+public partial class ActsViewModel : ViewModelBase
+{
+    private readonly IDbContextFactory<AppDbContext> _contextFactory;
+    private readonly IFileService _fileService;
+    private readonly WordDocumentService _wordService;
+    private readonly int _objectId;
+    private readonly string _objectName;
+
+    [ObservableProperty]
+    private ObservableCollection<Act> _acts = new();
+
+    [ObservableProperty]
+    private Act? _selectedAct;
+
+    [ObservableProperty]
+    private bool _isLoading;
+
+    [ObservableProperty]
+    private string _statusMessage = "Загрузка актов...";
+
+    [ObservableProperty]
+    private string _searchText = string.Empty;
+
+    // ==================== СПРАВОЧНИКИ ====================
+
+    [ObservableProperty]
+    private ObservableCollection<Employee> _employees = new();
+
+    [ObservableProperty]
+    private ObservableCollection<Act> _availableActsForLink = new();
+
+    public ActsViewModel(
+        IDbContextFactory<AppDbContext> contextFactory,
+        IFileService fileService,
+        int objectId,
+        string objectName)
+    {
+        _contextFactory = contextFactory;
+        _fileService = fileService;
+        _objectId = objectId;
+        _objectName = objectName;
+
+        // Инициализация сервиса Word с RegistryService
+        var templatesPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Templates");
+        var baseOutputPath = AppDomain.CurrentDomain.BaseDirectory;
+        var registryService = new RegistryService();
+        _wordService = new WordDocumentService(templatesPath, baseOutputPath, registryService);
+
+        // Запускаем загрузку асинхронно
+        _ = LoadDataAsync();
+    }
+
+    /// <summary>
+    /// Асинхронная загрузка данных актов, сотрудников и справочников
+    /// </summary>
+    private async Task LoadDataAsync()
+    {
+        IsLoading = true;
+        StatusMessage = "Загрузка актов...";
+
+        try
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+
+            // Загрузка актов текущего объекта с навигационными свойствами
+            var actsList = await context.Acts
+                .Include(a => a.ConstructionObject)
+                .Include(a => a.RelatedAct)
+                .Include(a => a.RelatedAook)
+                .Include(a => a.CustomerRep)
+                .Include(a => a.GenContractorRep)
+                .Include(a => a.GenContractorSkRep)
+                .Include(a => a.ContractorRep)
+                .Include(a => a.DesignerRep)
+                .Include(a => a.OtherPerson1)
+                .Include(a => a.OtherPerson2)
+                .Include(a => a.OtherPerson3)
+                .Include(a => a.ActMaterials)
+                    .ThenInclude(am => am.Material)
+                .Include(a => a.ActSchemas)
+                    .ThenInclude(asc => asc.Schema)
+                .Include(a => a.ActProjectDocs)
+                    .ThenInclude(apd => apd.ProjectDoc)
+                .Include(a => a.Protocols)
+                .Where(a => a.ConstructionObjectId == _objectId)
+                .OrderByDescending(a => a.ActDate)
+                .ToListAsync();
+
+            // Загрузка сотрудников текущего объекта
+            var employeesList = await context.Employees
+                .Where(e => e.ConstructionObjectId == _objectId && e.IsActive)
+                .OrderBy(e => e.FullName)
+                .ToListAsync();
+
+            // Все акты этого объекта для связей (ИД/АООК)
+            var allActs = await context.Acts
+                .Where(a => a.ConstructionObjectId == _objectId)
+                .OrderByDescending(a => a.ActDate)
+                .ToListAsync();
+
+            // Заполняем коллекции
+            Acts.Clear();
+            foreach (var act in actsList)
+            {
+                // Пересчитываем вычисляемые поля перед отображением
+                ActCalculationService.RecalculateAll(act);
+                Acts.Add(act);
+            }
+
+            Employees.Clear();
+            foreach (var emp in employeesList)
+                Employees.Add(emp);
+
+            AvailableActsForLink.Clear();
+            foreach (var act in allActs)
+                AvailableActsForLink.Add(act);
+
+            StatusMessage = Acts.Count > 0
+                ? $"Загружено актов: {Acts.Count}, сотрудников: {Employees.Count}"
+                : "Нет актов для данного объекта. Нажмите «➕ Новый акт» для создания.";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Ошибка загрузки актов: {ex.Message}";
+            System.Diagnostics.Debug.WriteLine($"[ERROR] Ошибка загрузки актов: {ex}");
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    /// <summary>
+    /// Обновить список актов
+    /// </summary>
+    [RelayCommand]
+    private async Task RefreshAsync()
+    {
+        await LoadDataAsync();
+    }
+
+    /// <summary>
+    /// Создать новый акт
+    /// </summary>
+    [RelayCommand]
+    private async Task AddNewAct()
+    {
+        var newAct = new Act
+        {
+            ConstructionObjectId = _objectId,
+            Type = "АОСР",
+            ActNumber = "",
+            WorkName = "Новые работы",
+            ActDate = DateTime.Now,
+            WorkStartDate = DateTime.Now,
+            WorkEndDate = DateTime.Now,
+            Status = "Черновик",
+            CreatedAt = DateTime.Now
+        };
+
+        // Пересчитываем вычисляемые поля
+        ActCalculationService.RecalculateAll(newAct);
+
+        // Вставляем в начало коллекции
+        Acts.Insert(0, newAct);
+        SelectedAct = newAct;
+
+        // Сохраняем в БД для получения ID
+        await SaveActToDbAsync(newAct);
+    }
+
+    /// <summary>
+    /// Удалить выбранный акт
+    /// </summary>
+    [RelayCommand]
+    private async Task DeleteSelectedActAsync()
+    {
+        if (SelectedAct == null) return;
+
+        var actNumber = string.IsNullOrEmpty(SelectedAct.ActNumber)
+            ? "(без номера)"
+            : SelectedAct.ActNumber;
+
+        var result = MessageBox.Show(
+            $"Удалить акт №{actNumber}?\n\nЭто действие нельзя отменить.",
+            "Подтверждение удаления",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning);
+
+        if (result != MessageBoxResult.Yes) return;
+
+        try
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+
+            var actToDelete = await context.Acts.FindAsync(SelectedAct.Id);
+            if (actToDelete != null)
+            {
+                context.Acts.Remove(actToDelete);
+                await context.SaveChangesAsync();
+
+                Acts.Remove(SelectedAct);
+                SelectedAct = null;
+
+                StatusMessage = "Акт удалён";
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                $"Ошибка удаления акта: {ex.Message}",
+                "Ошибка",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+
+            StatusMessage = $"Ошибка удаления: {ex.Message}";
+        }
+    }
+
+    // ==================== КОМАНДЫ ДЛЯ КНОПОК ВЫБОРА КОЛЛЕКЦИЙ ====================
+
+    [RelayCommand]
+    private async Task EditMaterials(Act act)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+
+        // Все материалы текущего объекта
+        var allMaterials = await context.Materials
+            .Where(m => m.ConstructionObjectId == _objectId)
+            .OrderBy(m => m.Name)
+            .ToListAsync();
+
+        if (!allMaterials.Any())
+        {
+            MessageBox.Show("В справочнике объекта нет материалов. Сначала добавьте материалы.",
+                "Материалы", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        // Текущие выбранные материалы акта (через промежуточную таблицу)
+        var currentMaterials = await context.ActMaterials
+            .Where(am => am.ActId == act.Id)
+            .Include(am => am.Material)
+            .Select(am => am.Material!)
+            .ToListAsync();
+
+        // Создаём VM
+        var vm = new MultiSelectViewModel<Material>(
+            allMaterials,
+            currentMaterials,
+            m => $"{m.Name} ({m.Type})");
+
+        vm.WindowTitle = $"Материалы — Акт {act.ActNumber}";
+
+        // Открываем окно
+        var window = new Views.MultiSelectWindow("Name")
+        {
+            DataContext = vm,
+            Owner = Application.Current.MainWindow
+        };
+
+        if (window.ShowDialog() == true)
+        {
+            await SaveActMaterialsAsync(act, window.SelectedItemsResult.Cast<Material>().ToList());
+            StatusMessage = $"Материалы сохранены: {window.SelectedItemsResult.Count} шт.";
+            // Перезагружаем данные для обновления MaterialsDisplay
+            await LoadDataAsync();
+        }
+    }
+
+    [RelayCommand]
+    private async Task EditSchemas(Act act)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+
+        var allSchemas = await context.Schemas
+            .Where(s => s.ConstructionObjectId == _objectId)
+            .OrderBy(s => s.Name)
+            .ToListAsync();
+
+        if (!allSchemas.Any())
+        {
+            MessageBox.Show("В справочнике объекта нет схем. Сначала добавьте схемы.",
+                "Схемы", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        var currentSchemas = await context.ActSchemas
+            .Where(asc => asc.ActId == act.Id)
+            .Include(asc => asc.Schema)
+            .Select(asc => asc.Schema!)
+            .ToListAsync();
+
+        var vm = new MultiSelectViewModel<Schema>(
+            allSchemas,
+            currentSchemas,
+            s => $"{s.Number} — {s.Name}");
+
+        vm.WindowTitle = $"Исполнительные схемы — Акт {act.ActNumber}";
+
+        var window = new Views.MultiSelectWindow("Name")
+        {
+            DataContext = vm,
+            Owner = Application.Current.MainWindow
+        };
+
+        if (window.ShowDialog() == true)
+        {
+            await SaveActSchemasAsync(act, window.SelectedItemsResult.Cast<Schema>().ToList());
+            StatusMessage = $"Схемы сохранены: {window.SelectedItemsResult.Count} шт.";
+            await LoadDataAsync();
+        }
+    }
+
+    [RelayCommand]
+    private async Task EditProtocols(Act act)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+
+        var allProtocols = await context.Protocols
+            .Where(p => p.ConstructionObjectId == _objectId)
+            .OrderByDescending(p => p.Date)
+            .ToListAsync();
+
+        if (!allProtocols.Any())
+        {
+            MessageBox.Show("В справочнике объекта нет протоколов. Сначала добавьте протоколы.",
+                "Протоколы", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        // Протоколы привязаны к акту напрямую (не через промежуточную таблицу)
+        var currentProtocols = await context.Protocols
+            .Where(p => p.ActId == act.Id)
+            .ToListAsync();
+
+        var vm = new MultiSelectViewModel<Protocol>(
+            allProtocols,
+            currentProtocols,
+            p => $"{p.Number} от {p.Date:dd.MM.yyyy} — {p.Type}");
+
+        vm.WindowTitle = $"Протоколы экспертиз — Акт {act.ActNumber}";
+
+        var window = new Views.MultiSelectWindow("Number")
+        {
+            DataContext = vm,
+            Owner = Application.Current.MainWindow
+        };
+
+        if (window.ShowDialog() == true)
+        {
+            await SaveActProtocolsAsync(act, window.SelectedItemsResult.Cast<Protocol>().ToList());
+            StatusMessage = $"Протоколы сохранены: {window.SelectedItemsResult.Count} шт.";
+            await LoadDataAsync();
+        }
+    }
+
+    [RelayCommand]
+    private async Task EditProjectDocs(Act act)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+
+        var allProjectDocs = await context.ProjectDocs
+            .Where(pd => pd.ConstructionObjectId == _objectId)
+            .OrderBy(pd => pd.Code)
+            .ToListAsync();
+
+        if (!allProjectDocs.Any())
+        {
+            MessageBox.Show("В справочнике объекта нет проектной документации. Сначала добавьте документы.",
+                "Проектная документация", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        var currentProjectDocs = await context.ActProjectDocs
+            .Where(apd => apd.ActId == act.Id)
+            .Include(apd => apd.ProjectDoc)
+            .Select(apd => apd.ProjectDoc!)
+            .ToListAsync();
+
+        var vm = new MultiSelectViewModel<ProjectDoc>(
+            allProjectDocs,
+            currentProjectDocs,
+            pd => $"{pd.Code} — {pd.Name}");
+
+        vm.WindowTitle = $"Проектная документация — Акт {act.ActNumber}";
+
+        var window = new Views.MultiSelectWindow("Code")
+        {
+            DataContext = vm,
+            Owner = Application.Current.MainWindow
+        };
+
+        if (window.ShowDialog() == true)
+        {
+            await SaveActProjectDocsAsync(act, window.SelectedItemsResult.Cast<ProjectDoc>().ToList());
+            StatusMessage = $"Проектная документация сохранена: {window.SelectedItemsResult.Count} шт.";
+            await LoadDataAsync();
+        }
+    }
+
+    [RelayCommand]
+    private void EditRegulatoryDocs(Act act)
+    {
+        MessageBox.Show(
+            $"Выбор нормативных документов для акта \"{act.WorkName}\":\n\n" +
+            "Функционал будет реализован после создания справочника нормативов.",
+            "Нормативы", MessageBoxButton.OK, MessageBoxImage.Information);
+    }
+
+    [RelayCommand]
+    private void SelectSubsequentWork(Act act)
+    {
+        MessageBox.Show(
+            $"Выбор последующих работ для акта \"{act.WorkName}\":\n\n" +
+            "Функционал будет реализован в отдельном окне выбора одного элемента.",
+            "Последующие работы", MessageBoxButton.OK, MessageBoxImage.Information);
+    }
+
+    // ==================== ГЕНЕРАЦИЯ ДОКУМЕНТОВ ====================
+
+    /// <summary>
+    /// Сгенерировать Word-документ акта из шаблона.
+    /// </summary>
+    [RelayCommand]
+    private async Task GenerateDocument(Act act)
+    {
+        if (act == null) return;
+
+        try
+        {
+            StatusMessage = "Генерация документа...";
+
+            // Пересчитываем вычисляемые поля перед генерацией
+            ActCalculationService.RecalculateAll(act);
+
+            // Вызываем сервис
+            var filePath = await _wordService.GenerateActAsync(act);
+
+            // Обновляем статус в UI
+            act.Status = "✅ Сгенерирован";
+            act.GeneratedFilePath = filePath;
+            act.UpdatedAt = DateTime.Now;
+
+            // Сохраняем изменения пути в БД
+            await SaveActToDbAsync(act);
+
+            StatusMessage = $"Документ создан: {Path.GetFileName(filePath)}";
+
+            // Открываем папку с выделенным файлом
+            Process.Start("explorer.exe", $"/select,\"{filePath}\"");
+        }
+        catch (FileNotFoundException ex)
+        {
+            MessageBox.Show(
+                $"Шаблон не найден:\n{ex.Message}\n\n" +
+                "Убедитесь, что файл шаблона присутствует в папке Templates.",
+                "Ошибка генерации", MessageBoxButton.OK, MessageBoxImage.Warning);
+            act.Status = "❌ Ошибка";
+            StatusMessage = "Ошибка генерации: шаблон не найден";
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                $"Ошибка генерации документа:\n\n{ex.Message}",
+                "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            act.Status = "❌ Ошибка";
+            StatusMessage = $"Ошибка генерации: {ex.Message}";
+        }
+    }
+
+    // ==================== СОХРАНЕНИЕ КОЛЛЕКЦИЙ ====================
+
+    /// <summary>
+    /// Сохранить выбранные материалы для акта (через промежуточную таблицу ActMaterial)
+    /// </summary>
+    private async Task SaveActMaterialsAsync(Act act, List<Material> selectedMaterials)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+
+        // Удаляем старые связи
+        var oldLinks = await context.ActMaterials
+            .Where(am => am.ActId == act.Id)
+            .ToListAsync();
+        context.ActMaterials.RemoveRange(oldLinks);
+
+        // Добавляем новые связи
+        foreach (var material in selectedMaterials)
+        {
+            context.ActMaterials.Add(new ActMaterial
+            {
+                ActId = act.Id,
+                MaterialId = material.Id,
+                Quantity = material.Quantity,
+                Note = null
+            });
+        }
+
+        await context.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Сохранить выбранные схемы для акта (через промежуточную таблицу ActSchema)
+    /// </summary>
+    private async Task SaveActSchemasAsync(Act act, List<Schema> selectedSchemas)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+
+        var oldLinks = await context.ActSchemas
+            .Where(asc => asc.ActId == act.Id)
+            .ToListAsync();
+        context.ActSchemas.RemoveRange(oldLinks);
+
+        foreach (var schema in selectedSchemas)
+        {
+            context.ActSchemas.Add(new ActSchema
+            {
+                ActId = act.Id,
+                SchemaId = schema.Id,
+                Note = null
+            });
+        }
+
+        await context.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Сохранить выбранные протоколы для акта (прямая связь Protocol.ActId)
+    /// </summary>
+    private async Task SaveActProtocolsAsync(Act act, List<Protocol> selectedProtocols)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+
+        // Сбрасываем привязку у старых протоколов
+        var oldProtocols = await context.Protocols
+            .Where(p => p.ActId == act.Id)
+            .ToListAsync();
+        foreach (var p in oldProtocols)
+            p.ActId = null;
+
+        // Привязываем новые
+        foreach (var protocol in selectedProtocols)
+            protocol.ActId = act.Id;
+
+        await context.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Сохранить выбранную проектную документацию для акта (через промежуточную таблицу ActProjectDoc)
+    /// </summary>
+    private async Task SaveActProjectDocsAsync(Act act, List<ProjectDoc> selectedProjectDocs)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+
+        var oldLinks = await context.ActProjectDocs
+            .Where(apd => apd.ActId == act.Id)
+            .ToListAsync();
+        context.ActProjectDocs.RemoveRange(oldLinks);
+
+        foreach (var projectDoc in selectedProjectDocs)
+        {
+            context.ActProjectDocs.Add(new ActProjectDoc
+            {
+                ActId = act.Id,
+                ProjectDocId = projectDoc.Id,
+                Note = null
+            });
+        }
+
+        await context.SaveChangesAsync();
+    }
+
+    // ==================== ПЕРЕСЧЁТ И СОХРАНЕНИЕ ====================
+
+    /// <summary>
+    /// Пересчитать вычисляемые поля акта и сохранить изменения.
+    /// Вызывается из ActsView.xaml.cs при CellEditEnding.
+    /// </summary>
+    public void RecalculateAndSaveAct(Act act)
+    {
+        if (act == null) return;
+
+        // Пересчитываем вычисляемые поля по формулам VBA
+        ActCalculationService.RecalculateAll(act);
+
+        // Сохраняем в БД
+        OnActPropertyChanged(act);
+    }
+
+    /// <summary>
+    /// Сохранить изменения акта в БД (вызывается при изменении свойств)
+    /// </summary>
+    public async void OnActPropertyChanged(Act act)
+    {
+        if (act == null) return;
+        await SaveActToDbAsync(act);
+    }
+
+    /// <summary>
+    /// Внутренний метод сохранения акта в БД
+    /// </summary>
+    private async Task SaveActToDbAsync(Act act)
+    {
+        try
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+
+            // Обновляем метаданные
+            act.UpdatedAt = DateTime.Now;
+
+            if (act.Id == 0)
+            {
+                // Новый акт
+                context.Acts.Add(act);
+            }
+            else
+            {
+                // Существующий акт — прикрепляем и помечаем как изменённый
+                context.Attach(act);
+                context.Entry(act).State = EntityState.Modified;
+            }
+
+            await context.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                $"Ошибка сохранения акта: {ex.Message}",
+                "Ошибка",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+
+            StatusMessage = $"Ошибка сохранения: {ex.Message}";
+        }
+    }
+}
+Код для файла EmployeesViewModel.cs:
+using System;
+using System.Collections.ObjectModel;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
+using System.Windows;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Win32;
+using AGenerator.Database;
+using AGenerator.Models;
+using AGenerator.Services;
+
+namespace AGenerator.ViewModels;
+
+/// <summary>
+/// ViewModel для управления сотрудниками текущего объекта строительства.
+/// Аналог VBA-листа "Люди".
+/// </summary>
+public partial class EmployeesViewModel : ViewModelBase
+{
+    private readonly IDbContextFactory<AppDbContext> _contextFactory;
+    private readonly IFileService _fileService;
+    private readonly int _objectId;
+    private readonly string _objectName;
+
+    [ObservableProperty]
+    private ObservableCollection<Employee> _employees = new();
+
+    [ObservableProperty]
+    private Employee? _selectedEmployee;
+
+    [ObservableProperty]
+    private bool _isEditing;
+
+    [ObservableProperty]
+    private Employee _editingEmployee = new();
+
+    /// <summary>
+    /// Временный путь к файлу приказа (копия, которая удаляется при отмене).
+    /// Если файл уже сохранён в БД — это основной путь.
+    /// </summary>
+    private string? _tempOrderFilePath;
+
+    [ObservableProperty]
+    private string _statusMessage = "Загрузка сотрудников...";
+
+    [ObservableProperty]
+    private bool _isLoading;
+
+    [ObservableProperty]
+    private string _searchText = string.Empty;
+
+    public EmployeesViewModel(IDbContextFactory<AppDbContext> contextFactory, IFileService fileService, int objectId, string objectName)
+    {
+        _contextFactory = contextFactory;
+        _fileService = fileService;
+        _objectId = objectId;
+        _objectName = objectName;
+        _ = LoadEmployeesAsync();
+    }
+
+    private async Task LoadEmployeesAsync()
+    {
+        IsLoading = true;
+        StatusMessage = "Загрузка сотрудников...";
+
+        try
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+            var list = await context.Employees
+                .Where(e => e.ConstructionObjectId == _objectId && e.IsActive)
+                .OrderBy(e => e.Role)
+                .ThenBy(e => e.FullName)
+                .ToListAsync();
+
+            // Проверяем существование файлов и очищаем битые ссылки
+            foreach (var emp in list)
+            {
+                if (!string.IsNullOrEmpty(emp.OrderFilePath) && !_fileService.FileExists(emp.OrderFilePath))
+                {
+                    emp.OrderFilePath = string.Empty;
+                    context.Entry(emp).Property(e => e.OrderFilePath).IsModified = true;
+                }
+            }
+            await context.SaveChangesAsync();
+
+            Employees.Clear();
+            foreach (var emp in list)
+                Employees.Add(emp);
+
+            StatusMessage = Employees.Count > 0
+                ? $"Сотрудников: {Employees.Count}"
+                : "Нет сотрудников. Нажмите «➕ Добавить» для создания.";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Ошибка загрузки: {ex.Message}";
+            System.Diagnostics.Debug.WriteLine($"[ERROR] Ошибка загрузки сотрудников: {ex}");
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    [RelayCommand]
+    private async Task RefreshAsync()
+    {
+        await LoadEmployeesAsync();
+    }
+
+    [RelayCommand]
+    private void AddNewEmployee()
+    {
+        _tempOrderFilePath = null;
+        EditingEmployee = new Employee
+        {
+            ConstructionObjectId = _objectId,
+            Role = RepresentativeType.SK_Zakazchika,
+            IsActive = true
+        };
+        OnPropertyChanged(nameof(HasTempOrderFile));
+        OnPropertyChanged(nameof(HasSavedOrderFile));
+        OnPropertyChanged(nameof(OrderFileDisplayName));
+        IsEditing = true;
+    }
+
+    [RelayCommand]
+    private void EditSelectedEmployee()
+    {
+        if (SelectedEmployee == null) return;
+
+        _tempOrderFilePath = null;
+
+        // Клонируем, чтобы можно было отменить изменения
+        EditingEmployee = new Employee
+        {
+            Id = SelectedEmployee.Id,
+            ConstructionObjectId = SelectedEmployee.ConstructionObjectId,
+            FullName = SelectedEmployee.FullName,
+            Position = SelectedEmployee.Position,
+            OrganizationName = SelectedEmployee.OrganizationName,
+            OrderNumber = SelectedEmployee.OrderNumber,
+            OrderDate = SelectedEmployee.OrderDate,
+            NrsNumber = SelectedEmployee.NrsNumber,
+            NrsDate = SelectedEmployee.NrsDate,
+            WorkStartDate = SelectedEmployee.WorkStartDate,
+            WorkEndDate = SelectedEmployee.WorkEndDate,
+            IncludeOrganizationInAct = SelectedEmployee.IncludeOrganizationInAct,
+            OrganizationRequisites = SelectedEmployee.OrganizationRequisites,
+            Role = SelectedEmployee.Role,
+            IsActive = SelectedEmployee.IsActive,
+            OrderFilePath = SelectedEmployee.OrderFilePath
+        };
+        OnPropertyChanged(nameof(HasTempOrderFile));
+        OnPropertyChanged(nameof(HasSavedOrderFile));
+        OnPropertyChanged(nameof(OrderFileDisplayName));
+        IsEditing = true;
+    }
+
+    /// <summary>
+    /// Копировать сотрудника — открывает форму с данными выбранного, но как новая запись
+    /// </summary>
+    [RelayCommand]
+    private void CopyEmployee()
+    {
+        if (SelectedEmployee == null) return;
+
+        _tempOrderFilePath = null;
+
+        EditingEmployee = new Employee
+        {
+            ConstructionObjectId = _objectId,
+            FullName = SelectedEmployee.FullName,
+            Position = SelectedEmployee.Position,
+            OrganizationName = SelectedEmployee.OrganizationName,
+            OrderNumber = SelectedEmployee.OrderNumber,
+            OrderDate = SelectedEmployee.OrderDate,
+            NrsNumber = SelectedEmployee.NrsNumber,
+            NrsDate = SelectedEmployee.NrsDate,
+            WorkStartDate = SelectedEmployee.WorkStartDate,
+            WorkEndDate = SelectedEmployee.WorkEndDate,
+            IncludeOrganizationInAct = SelectedEmployee.IncludeOrganizationInAct,
+            OrganizationRequisites = SelectedEmployee.OrganizationRequisites,
+            Role = SelectedEmployee.Role,
+            IsActive = true,
+            // OrderFilePath НЕ копируем — файл нужно прикрепить заново
+        };
+        OnPropertyChanged(nameof(HasTempOrderFile));
+        OnPropertyChanged(nameof(HasSavedOrderFile));
+        OnPropertyChanged(nameof(OrderFileDisplayName));
+        IsEditing = true;
+    }
+
+    [RelayCommand]
+    private async Task SaveEmployee()
+    {
+        if (string.IsNullOrWhiteSpace(EditingEmployee.FullName))
+        {
+            MessageBox.Show("ФИО не может быть пустым.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        try
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+
+            if (EditingEmployee.Id == 0)
+            {
+                // Новый сотрудник — сохраняем файл в основную папку
+                if (!string.IsNullOrEmpty(_tempOrderFilePath) && File.Exists(_tempOrderFilePath))
+                {
+                    using (var sourceStream = File.OpenRead(_tempOrderFilePath))
+                    {
+                        EditingEmployee.OrderFilePath = _fileService.SaveOrderFile(
+                            _objectId,
+                            _objectName,
+                            sourceStream,
+                            EditingEmployee.FullName,
+                            EditingEmployee.OrderNumber,
+                            EditingEmployee.OrderDate,
+                            Path.GetFileName(_tempOrderFilePath));
+                    }
+                    File.Delete(_tempOrderFilePath);
+                }
+                _tempOrderFilePath = null;
+
+                context.Employees.Add(EditingEmployee);
+            }
+            else
+            {
+                var existing = await context.Employees.FindAsync(EditingEmployee.Id);
+                if (existing != null)
+                {
+                    // Если был временный файл — сохраняем в основную папку
+                    if (!string.IsNullOrEmpty(_tempOrderFilePath) && File.Exists(_tempOrderFilePath))
+                    {
+                        // Удаляем старый файл
+                        if (!string.IsNullOrEmpty(existing.OrderFilePath) && _fileService.FileExists(existing.OrderFilePath))
+                            File.Delete(existing.OrderFilePath);
+
+                        using (var sourceStream = File.OpenRead(_tempOrderFilePath))
+                        {
+                            existing.OrderFilePath = _fileService.SaveOrderFile(
+                                _objectId,
+                                _objectName,
+                                sourceStream,
+                                EditingEmployee.FullName,
+                                EditingEmployee.OrderNumber,
+                                EditingEmployee.OrderDate,
+                                Path.GetFileName(_tempOrderFilePath));
+                        }
+                        File.Delete(_tempOrderFilePath);
+                        _tempOrderFilePath = null;
+                    }
+
+                    existing.FullName = EditingEmployee.FullName;
+                    existing.Position = EditingEmployee.Position;
+                    existing.OrganizationName = EditingEmployee.OrganizationName;
+                    existing.OrderNumber = EditingEmployee.OrderNumber;
+                    existing.OrderDate = EditingEmployee.OrderDate;
+                    existing.NrsNumber = EditingEmployee.NrsNumber;
+                    existing.NrsDate = EditingEmployee.NrsDate;
+                    existing.WorkStartDate = EditingEmployee.WorkStartDate;
+                    existing.WorkEndDate = EditingEmployee.WorkEndDate;
+                    existing.IncludeOrganizationInAct = EditingEmployee.IncludeOrganizationInAct;
+                    existing.OrganizationRequisites = EditingEmployee.OrganizationRequisites;
+                    existing.Role = EditingEmployee.Role;
+                    existing.IsActive = EditingEmployee.IsActive;
+                }
+            }
+
+            await context.SaveChangesAsync();
+            IsEditing = false;
+            _tempOrderFilePath = null;
+            OnPropertyChanged(nameof(HasTempOrderFile));
+            OnPropertyChanged(nameof(HasSavedOrderFile));
+            OnPropertyChanged(nameof(OrderFileDisplayName));
+            await LoadEmployeesAsync();
+            StatusMessage = EditingEmployee.Id == 0 ? "Сотрудник добавлен" : "Сотрудник обновлён";
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Ошибка сохранения: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    [RelayCommand]
+    private void CancelEdit()
+    {
+        // Удаляем временный файл при отмене
+        if (!string.IsNullOrEmpty(_tempOrderFilePath) && File.Exists(_tempOrderFilePath))
+        {
+            try { File.Delete(_tempOrderFilePath); } catch { /* игнорируем */ }
+        }
+        _tempOrderFilePath = null;
+        OnPropertyChanged(nameof(HasTempOrderFile));
+        OnPropertyChanged(nameof(HasSavedOrderFile));
+        OnPropertyChanged(nameof(OrderFileDisplayName));
+        IsEditing = false;
+    }
+
+    [RelayCommand]
+    private async Task DeleteSelectedEmployee()
+    {
+        if (SelectedEmployee == null) return;
+
+        var result = MessageBox.Show(
+            $"Удалить сотрудника \"{SelectedEmployee.FullName}\"?\n\n" +
+            "Это действие нельзя отменить. Связанный файл приказа также будет удалён.",
+            "Подтверждение удаления",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning);
+
+        if (result != MessageBoxResult.Yes) return;
+
+        try
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+
+            // Удаляем файл приказа с диска
+            if (!string.IsNullOrEmpty(SelectedEmployee.OrderFilePath) && _fileService.FileExists(SelectedEmployee.OrderFilePath))
+                File.Delete(SelectedEmployee.OrderFilePath);
+
+            // Жёсткое удаление из БД
+            var dbEmp = await context.Employees.FindAsync(SelectedEmployee.Id);
+            if (dbEmp != null)
+            {
+                context.Employees.Remove(dbEmp);
+            }
+
+            await context.SaveChangesAsync();
+            await LoadEmployeesAsync();
+            StatusMessage = "Сотрудник удалён";
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                $"Ошибка удаления: {ex.Message}",
+                "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    /// <summary>
+    /// Получить отображаемое имя роли
+    /// </summary>
+    public static string GetRoleDisplayName(RepresentativeType role)
+    {
+        return role switch
+        {
+            RepresentativeType.SK_Zakazchika => "СК Заказчика",
+            RepresentativeType.GenPodryadchik => "Генподрядчик",
+            RepresentativeType.SK_GenPodryadchika => "СК Генподрядчика",
+            RepresentativeType.Podryadchik => "Подрядчик",
+            RepresentativeType.AvtorskiyNadzor => "Авторский надзор",
+            RepresentativeType.InoeLico => "Иное лицо",
+            _ => role.ToString()
+        };
+    }
+
+    // ==================== КОМАНДЫ ДЛЯ РАБОТЫ С ФАЙЛАМИ ====================
+
+    /// <summary>
+    /// Есть ли ВРЕМЕННЫЙ файл приказа (выбран но не сохранён)
+    /// </summary>
+    public bool HasTempOrderFile => !string.IsNullOrEmpty(_tempOrderFilePath);
+
+    /// <summary>
+    /// Есть ли сохранённый файл приказа у редактируемого сотрудника
+    /// </summary>
+    public bool HasSavedOrderFile => !string.IsNullOrEmpty(EditingEmployee?.OrderFilePath);
+
+    /// <summary>
+    /// Отображаемое имя файла (временного или основного)
+    /// </summary>
+    public string OrderFileDisplayName
+    {
+        get
+        {
+            if (!string.IsNullOrEmpty(_tempOrderFilePath))
+                return Path.GetFileName(_tempOrderFilePath);
+            if (!string.IsNullOrEmpty(EditingEmployee?.OrderFilePath))
+                return Path.GetFileName(EditingEmployee.OrderFilePath);
+            return string.Empty;
+        }
+    }
+
+    [RelayCommand]
+    private void AttachOrderFile()
+    {
+        var dialog = new OpenFileDialog
+        {
+            Title = "Выберите файл приказа",
+            Filter = "Все файлы (*.*)|*.*|PDF (*.pdf)|*.pdf|DOCX (*.docx)|*.docx|Изображения (*.jpg;*.png)|*.jpg;*.png"
+        };
+
+        if (dialog.ShowDialog() != true) return;
+
+        try
+        {
+            // Копируем во временную папку
+            var tempDir = Path.Combine(Path.GetTempPath(), "AGenerator_Temp");
+            Directory.CreateDirectory(tempDir);
+
+            // Удаляем старый временный файл если есть
+            if (!string.IsNullOrEmpty(_tempOrderFilePath) && File.Exists(_tempOrderFilePath))
+                File.Delete(_tempOrderFilePath);
+
+            var tempFileName = $"order_{Guid.NewGuid():N}{Path.GetExtension(dialog.FileName)}";
+            _tempOrderFilePath = Path.Combine(tempDir, tempFileName);
+            File.Copy(dialog.FileName, _tempOrderFilePath, true);
+
+            OnPropertyChanged(nameof(HasTempOrderFile));
+            OnPropertyChanged(nameof(HasSavedOrderFile));
+            OnPropertyChanged(nameof(OrderFileDisplayName));
+
+            StatusMessage = $"Файл выбран: {Path.GetFileName(dialog.FileName)} (будет сохранён при подтверждении)";
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Ошибка выбора файла: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    [RelayCommand]
+    private void RemoveOrderFile()
+    {
+        if (EditingEmployee == null) return;
+
+        // Удаляем временный файл
+        if (!string.IsNullOrEmpty(_tempOrderFilePath) && File.Exists(_tempOrderFilePath))
+        {
+            try { File.Delete(_tempOrderFilePath); } catch { /* игнорируем */ }
+        }
+        _tempOrderFilePath = null;
+
+        // Для существующего сотрудника — помечаем на удаление при сохранении
+        if (!string.IsNullOrEmpty(EditingEmployee.OrderFilePath))
+        {
+            // Удаляем основной файл
+            if (_fileService.FileExists(EditingEmployee.OrderFilePath))
+                File.Delete(EditingEmployee.OrderFilePath);
+
+            EditingEmployee.OrderFilePath = string.Empty;
+        }
+
+        OnPropertyChanged(nameof(HasTempOrderFile));
+        OnPropertyChanged(nameof(HasSavedOrderFile));
+        OnPropertyChanged(nameof(OrderFileDisplayName));
+        StatusMessage = "Файл приказа удалён";
+    }
+
+    [RelayCommand]
+    private void OpenOrderFile()
+    {
+        if (SelectedEmployee == null) return;
+
+        var filePath = SelectedEmployee.OrderFilePath;
+        if (string.IsNullOrEmpty(filePath)) return;
+
+        // Проверяем существование
+        if (!_fileService.FileExists(filePath))
+        {
+            // Файл удалён/перемещён — очищаем ссылку
+            SelectedEmployee.OrderFilePath = string.Empty;
+            MessageBox.Show("Файл приказа не найден. Возможно, он был удалён или перемещён.",
+                "Файл не найден", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        try
+        {
+            _fileService.OpenFile(filePath);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Не удалось открыть файл: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    /// <summary>
+    /// Обработка Drop файла приказа (вызывается из code-behind)
+    /// </summary>
+    public void HandleOrderFileDrop(string[] filePaths)
+    {
+        if (EditingEmployee == null || filePaths.Length == 0) return;
+
+        var sourcePath = filePaths[0];
+        if (!File.Exists(sourcePath)) return;
+
+        try
+        {
+            // Копируем во временную папку
+            var tempDir = Path.Combine(Path.GetTempPath(), "AGenerator_Temp");
+            Directory.CreateDirectory(tempDir);
+
+            // Удаляем старый временный файл
+            if (!string.IsNullOrEmpty(_tempOrderFilePath) && File.Exists(_tempOrderFilePath))
+                File.Delete(_tempOrderFilePath);
+
+            var tempFileName = $"order_{Guid.NewGuid():N}{Path.GetExtension(sourcePath)}";
+            _tempOrderFilePath = Path.Combine(tempDir, tempFileName);
+            File.Copy(sourcePath, _tempOrderFilePath, true);
+
+            OnPropertyChanged(nameof(HasTempOrderFile));
+            OnPropertyChanged(nameof(HasSavedOrderFile));
+            OnPropertyChanged(nameof(OrderFileDisplayName));
+
+            StatusMessage = $"Файл выбран: {Path.GetFileName(sourcePath)} (будет сохранён при подтверждении)";
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Ошибка выбора файла: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+}
+Код для файла MainViewModel.cs:
+using System;
+using System.Collections.ObjectModel;
+using System.Threading.Tasks;
+using System.Windows.Input;
+using AGenerator.Database;
+using AGenerator.Models;
+using AGenerator.Services;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using Microsoft.EntityFrameworkCore;
+
+namespace AGenerator.ViewModels;
+
+public partial class MainViewModel : ObservableObject
+{
+    private readonly IFileService _fileService;
+    private readonly IDbContextFactory<AppDbContext> _contextFactory;
+
+    [ObservableProperty]
+    private ConstructionObject? _currentObject;
+
+    [ObservableProperty]
+    private string _windowTitle = "P-генератор";
+
+    [ObservableProperty]
+    private string _statusMessage = "Готово";
+
+    [ObservableProperty]
+    private bool _isLoading;
+
+    [ObservableProperty]
+    private ViewModelBase? _currentView;
+
+    [ObservableProperty]
+    private int _selectedTabIndex = 0;
+
+    // ViewModels для вкладок
+    [ObservableProperty]
+    private ActsViewModel? _actsViewModel;
+
+    [ObservableProperty]
+    private EmployeesViewModel? _employeesViewModel;
+
+    [ObservableProperty]
+    private MaterialsViewModel? _materialsViewModel;
+
+    [ObservableProperty]
+    private SchemasViewModel? _schemasViewModel;
+
+    [ObservableProperty]
+    private ProtocolsViewModel? _protocolsViewModel;
+
+    [ObservableProperty]
+    private ProjectDocsViewModel? _projectDocsViewModel;
+
+    public MainViewModel(IFileService fileService, IDbContextFactory<AppDbContext> contextFactory)
+    {
+        _fileService = fileService;
+        _contextFactory = contextFactory;
+    }
+
+    /// <summary>
+    /// Установить текущий объект строительства (вызывается после выбора в ObjectSelectionWindow)
+    /// </summary>
+    public void SetCurrentObject(ConstructionObject obj)
+    {
+        CurrentObject = obj;
+        WindowTitle = $"P-генератор — {obj.Name}";
+        StatusMessage = $"Работа с объектом: {obj.Name}";
+
+        // ВАЖНО: Не ждем завершения загрузки. Запускаем как fire-and-forget.
+        // Данные появятся в таблице чуть позже, но окно откроется сразу.
+        _ = InitializeViewAsync(obj.Id);
+    }
+
+    /// <summary>
+    /// Асинхронная инициализация: создание папок, загрузка данных
+    /// </summary>
+    private async Task InitializeViewAsync(int objectId)
+    {
+        try
+        {
+            // Создаем папки
+            _fileService.EnsureFoldersExist(objectId, CurrentObject?.Name ?? "Unknown");
+
+            // Загружаем данные объекта
+            await LoadObjectDataAsync();
+
+            // Создаем ViewModel'ы для вкладок
+            var objectName = CurrentObject?.Name ?? "Unknown";
+            ActsViewModel = new ActsViewModel(_contextFactory, _fileService, objectId, objectName);
+            EmployeesViewModel = new EmployeesViewModel(_contextFactory, _fileService, objectId, objectName);
+            MaterialsViewModel = new MaterialsViewModel(_contextFactory, _fileService, objectId, objectName);
+            SchemasViewModel = new SchemasViewModel(_contextFactory, _fileService, objectId, objectName);
+            ProtocolsViewModel = new ProtocolsViewModel(_contextFactory, _fileService, objectId, objectName);
+            ProjectDocsViewModel = new ProjectDocsViewModel(_contextFactory, _fileService, objectId, objectName);
+
+            // По умолчанию отображаем Акты
+            CurrentView = ActsViewModel;
+
+            StatusMessage = "Данные загружены успешно";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Ошибка инициализации: {ex.Message}";
+            System.Diagnostics.Debug.WriteLine($"[ERROR] Ошибка инициализации: {ex}");
+        }
+    }
+
+    /// <summary>
+    /// Обработчик смены вкладки
+    /// </summary>
+    partial void OnSelectedTabIndexChanged(int value)
+    {
+        CurrentView = value switch
+        {
+            0 => ActsViewModel,
+            1 => EmployeesViewModel,
+            2 => MaterialsViewModel,
+            3 => SchemasViewModel,
+            4 => ProtocolsViewModel,
+            5 => ProjectDocsViewModel,
+            _ => ActsViewModel
+        };
+    }
+
+    /// <summary>
+    /// Загрузка данных для текущего объекта (акты, сотрудники и т.д.)
+    /// </summary>
+    private async Task LoadObjectDataAsync()
+    {
+        if (CurrentObject == null) return;
+
+        IsLoading = true;
+        StatusMessage = "Загрузка данных...";
+
+        try
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+            var obj = await context.Objects
+                .Include(o => o.Acts)
+                .Include(o => o.Employees)
+                .Include(o => o.Materials)
+                .Include(o => o.Schemas)
+                .Include(o => o.Protocols)
+                .Include(o => o.ProjectDocs)
+                .FirstOrDefaultAsync(o => o.Id == CurrentObject.Id);
+
+            if (obj != null)
+            {
+                CurrentObject = obj;
+                StatusMessage = $"Загружено: актов {obj.Acts.Count}, сотрудников {obj.Employees.Count}";
+            }
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Ошибка загрузки: {ex.Message}";
+            System.Diagnostics.Debug.WriteLine($"[ERROR] Ошибка загрузки данных: {ex}");
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+}
+Код для файла MaterialsViewModel.cs:
+using System;
+using System.Collections.ObjectModel;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
+using System.Windows;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Win32;
+using AGenerator.Database;
+using AGenerator.Models;
+using AGenerator.Services;
+
+namespace AGenerator.ViewModels;
+
+/// <summary>
+/// ViewModel для управления материалами текущего объекта строительства.
+/// </summary>
+public partial class MaterialsViewModel : ViewModelBase
+{
+    private readonly IDbContextFactory<AppDbContext> _contextFactory;
+    private readonly IFileService _fileService;
+    private readonly int _objectId;
+    private readonly string _objectName;
+
+    [ObservableProperty]
+    private ObservableCollection<Material> _materials = new();
+
+    [ObservableProperty]
+    private Material? _selectedMaterial;
+
+    [ObservableProperty]
+    private bool _isEditing;
+
+    [ObservableProperty]
+    private Material _editingMaterial = new();
+
+    /// <summary>
+    /// Временный путь к файлу сертификата
+    /// </summary>
+    private string? _tempCertFilePath;
+
+    [ObservableProperty]
+    private string _statusMessage = "Загрузка материалов...";
+
+    [ObservableProperty]
+    private bool _isLoading;
+
+    [ObservableProperty]
+    private string _searchText = string.Empty;
+
+    public MaterialsViewModel(IDbContextFactory<AppDbContext> contextFactory, IFileService fileService, int objectId, string objectName)
+    {
+        _contextFactory = contextFactory;
+        _fileService = fileService;
+        _objectId = objectId;
+        _objectName = objectName;
+        _ = LoadMaterialsAsync();
+    }
+
+    private async Task LoadMaterialsAsync()
+    {
+        IsLoading = true;
+        StatusMessage = "Загрузка материалов...";
+
+        try
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+            var list = await context.Materials
+                .Where(m => m.ConstructionObjectId == _objectId)
+                .OrderBy(m => m.Type)
+                .ThenBy(m => m.Name)
+                .ToListAsync();
+
+            // Проверяем существование файлов
+            foreach (var mat in list)
+            {
+                if (!string.IsNullOrEmpty(mat.CertificateFilePath) && !_fileService.FileExists(mat.CertificateFilePath))
+                {
+                    mat.CertificateFilePath = string.Empty;
+                    context.Entry(mat).Property(e => e.CertificateFilePath).IsModified = true;
+                }
+            }
+            await context.SaveChangesAsync();
+
+            Materials.Clear();
+            foreach (var mat in list)
+                Materials.Add(mat);
+
+            StatusMessage = Materials.Count > 0
+                ? $"Материалов: {Materials.Count}"
+                : "Нет материалов. Нажмите «➕ Добавить» для создания.";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Ошибка загрузки: {ex.Message}";
+            System.Diagnostics.Debug.WriteLine($"[ERROR] Ошибка загрузки материалов: {ex}");
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    [RelayCommand]
+    private async Task RefreshAsync()
+    {
+        await LoadMaterialsAsync();
+    }
+
+    [RelayCommand]
+    private void AddNewMaterial()
+    {
+        _tempCertFilePath = null;
+        EditingMaterial = new Material
+        {
+            ConstructionObjectId = _objectId
+        };
+        OnPropertyChanged(nameof(HasTempCertFile));
+        OnPropertyChanged(nameof(HasSavedCertFile));
+        OnPropertyChanged(nameof(CertFileDisplayName));
+        IsEditing = true;
+    }
+
+    [RelayCommand]
+    private void EditSelectedMaterial()
+    {
+        if (SelectedMaterial == null) return;
+
+        _tempCertFilePath = null;
+        EditingMaterial = new Material
+        {
+            Id = SelectedMaterial.Id,
+            ConstructionObjectId = SelectedMaterial.ConstructionObjectId,
+            Name = SelectedMaterial.Name,
+            Type = SelectedMaterial.Type,
+            DocumentType = SelectedMaterial.DocumentType,
+            Unit = SelectedMaterial.Unit,
+            Quantity = SelectedMaterial.Quantity,
+            GostNumber = SelectedMaterial.GostNumber,
+            CertificateNumber = SelectedMaterial.CertificateNumber,
+            CertificateDateText = SelectedMaterial.CertificateDateText,
+            Manufacturer = SelectedMaterial.Manufacturer,
+            Supplier = SelectedMaterial.Supplier,
+            DeliveryDate = SelectedMaterial.DeliveryDate,
+            CertificateFilePath = SelectedMaterial.CertificateFilePath
+        };
+        OnPropertyChanged(nameof(HasTempCertFile));
+        OnPropertyChanged(nameof(HasSavedCertFile));
+        OnPropertyChanged(nameof(CertFileDisplayName));
+        IsEditing = true;
+    }
+
+    /// <summary>
+    /// Копировать материал — открывает форму как новая запись
+    /// </summary>
+    [RelayCommand]
+    private void CopyMaterial()
+    {
+        if (SelectedMaterial == null) return;
+
+        _tempCertFilePath = null;
+        EditingMaterial = new Material
+        {
+            ConstructionObjectId = _objectId,
+            Name = SelectedMaterial.Name,
+            Type = SelectedMaterial.Type,
+            DocumentType = SelectedMaterial.DocumentType,
+            Unit = SelectedMaterial.Unit,
+            Quantity = SelectedMaterial.Quantity,
+            GostNumber = SelectedMaterial.GostNumber,
+            CertificateNumber = SelectedMaterial.CertificateNumber,
+            CertificateDateText = SelectedMaterial.CertificateDateText,
+            Manufacturer = SelectedMaterial.Manufacturer,
+            Supplier = SelectedMaterial.Supplier,
+            DeliveryDate = SelectedMaterial.DeliveryDate,
+            // CertificateFilePath НЕ копируем
+        };
+        OnPropertyChanged(nameof(HasTempCertFile));
+        OnPropertyChanged(nameof(HasSavedCertFile));
+        OnPropertyChanged(nameof(CertFileDisplayName));
+        IsEditing = true;
+    }
+
+    [RelayCommand]
+    private async Task SaveMaterial()
+    {
+        if (string.IsNullOrWhiteSpace(EditingMaterial.Name))
+        {
+            MessageBox.Show("Название материала не может быть пустым.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(EditingMaterial.Type))
+        {
+            MessageBox.Show("Тип материала не может быть пустым.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        try
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+
+            if (EditingMaterial.Id == 0)
+            {
+                // Новый материал — сохраняем файл
+                if (!string.IsNullOrEmpty(_tempCertFilePath) && File.Exists(_tempCertFilePath))
+                {
+                    using (var sourceStream = File.OpenRead(_tempCertFilePath))
+                    {
+                        EditingMaterial.CertificateFilePath = _fileService.SaveMaterialCert(
+                            _objectId,
+                            _objectName,
+                            EditingMaterial.Type,
+                            sourceStream,
+                            EditingMaterial.Name,
+                            EditingMaterial.DocumentTypeDisplay,
+                            EditingMaterial.CertificateNumber,
+                            EditingMaterial.CertificateDateText,
+                            Path.GetFileName(_tempCertFilePath));
+                    }
+                    File.Delete(_tempCertFilePath);
+                }
+                _tempCertFilePath = null;
+
+                context.Materials.Add(EditingMaterial);
+            }
+            else
+            {
+                var existing = await context.Materials.FindAsync(EditingMaterial.Id);
+                if (existing != null)
+                {
+                    if (!string.IsNullOrEmpty(_tempCertFilePath) && File.Exists(_tempCertFilePath))
+                    {
+                        if (!string.IsNullOrEmpty(existing.CertificateFilePath) && _fileService.FileExists(existing.CertificateFilePath))
+                            File.Delete(existing.CertificateFilePath);
+
+                        using (var sourceStream = File.OpenRead(_tempCertFilePath))
+                        {
+                            existing.CertificateFilePath = _fileService.SaveMaterialCert(
+                                _objectId,
+                                _objectName,
+                                EditingMaterial.Type,
+                                sourceStream,
+                                EditingMaterial.Name,
+                                EditingMaterial.DocumentTypeDisplay,
+                                EditingMaterial.CertificateNumber,
+                                EditingMaterial.CertificateDateText,
+                                Path.GetFileName(_tempCertFilePath));
+                        }
+                        File.Delete(_tempCertFilePath);
+                        _tempCertFilePath = null;
+                    }
+
+                    existing.Name = EditingMaterial.Name;
+                    existing.Type = EditingMaterial.Type;
+                    existing.DocumentType = EditingMaterial.DocumentType;
+                    existing.Unit = EditingMaterial.Unit;
+                    existing.Quantity = EditingMaterial.Quantity;
+                    existing.GostNumber = EditingMaterial.GostNumber;
+                    existing.CertificateNumber = EditingMaterial.CertificateNumber;
+                    existing.CertificateDateText = EditingMaterial.CertificateDateText;
+                    existing.Manufacturer = EditingMaterial.Manufacturer;
+                    existing.Supplier = EditingMaterial.Supplier;
+                    existing.DeliveryDate = EditingMaterial.DeliveryDate;
+                }
+            }
+
+            await context.SaveChangesAsync();
+            IsEditing = false;
+            _tempCertFilePath = null;
+            OnPropertyChanged(nameof(HasTempCertFile));
+            OnPropertyChanged(nameof(HasSavedCertFile));
+            OnPropertyChanged(nameof(CertFileDisplayName));
+            await LoadMaterialsAsync();
+            StatusMessage = EditingMaterial.Id == 0 ? "Материал добавлен" : "Материал обновлён";
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Ошибка сохранения: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    [RelayCommand]
+    private void CancelEdit()
+    {
+        if (!string.IsNullOrEmpty(_tempCertFilePath) && File.Exists(_tempCertFilePath))
+            try { File.Delete(_tempCertFilePath); } catch { }
+        _tempCertFilePath = null;
+        OnPropertyChanged(nameof(HasTempCertFile));
+        OnPropertyChanged(nameof(HasSavedCertFile));
+        OnPropertyChanged(nameof(CertFileDisplayName));
+        IsEditing = false;
+    }
+
+    [RelayCommand]
+    private async Task DeleteSelectedMaterial()
+    {
+        if (SelectedMaterial == null) return;
+
+        var result = MessageBox.Show(
+            $"Удалить материал \"{SelectedMaterial.Name}\"?\n\n" +
+            "Это действие нельзя отменить. Связанный файл сертификата также будет удалён.",
+            "Подтверждение удаления",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning);
+
+        if (result != MessageBoxResult.Yes) return;
+
+        try
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+
+            if (!string.IsNullOrEmpty(SelectedMaterial.CertificateFilePath) && _fileService.FileExists(SelectedMaterial.CertificateFilePath))
+                File.Delete(SelectedMaterial.CertificateFilePath);
+
+            var mat = await context.Materials.FindAsync(SelectedMaterial.Id);
+            if (mat != null)
+            {
+                context.Materials.Remove(mat);
+                await context.SaveChangesAsync();
+            }
+            await LoadMaterialsAsync();
+            StatusMessage = "Материал удалён";
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Ошибка удаления: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    // ==================== КОМАНДЫ ДЛЯ РАБОТЫ С ФАЙЛАМИ ====================
+
+    public bool HasTempCertFile => !string.IsNullOrEmpty(_tempCertFilePath);
+    public bool HasSavedCertFile => !string.IsNullOrEmpty(EditingMaterial?.CertificateFilePath);
+
+    public string CertFileDisplayName
+    {
+        get
+        {
+            if (!string.IsNullOrEmpty(_tempCertFilePath))
+                return Path.GetFileName(_tempCertFilePath);
+            if (!string.IsNullOrEmpty(EditingMaterial?.CertificateFilePath))
+                return Path.GetFileName(EditingMaterial.CertificateFilePath);
+            return string.Empty;
+        }
+    }
+
+    [RelayCommand]
+    private void AttachCertificateFile()
+    {
+        var dialog = new OpenFileDialog
+        {
+            Title = "Выберите файл сертификата",
+            Filter = "Все файлы (*.*)|*.*|PDF (*.pdf)|*.pdf|Изображения (*.jpg;*.png)|*.jpg;*.png"
+        };
+
+        if (dialog.ShowDialog() != true) return;
+
+        try
+        {
+            var tempDir = Path.Combine(Path.GetTempPath(), "AGenerator_Temp");
+            Directory.CreateDirectory(tempDir);
+
+            if (!string.IsNullOrEmpty(_tempCertFilePath) && File.Exists(_tempCertFilePath))
+                File.Delete(_tempCertFilePath);
+
+            var tempFileName = $"cert_{Guid.NewGuid():N}{Path.GetExtension(dialog.FileName)}";
+            _tempCertFilePath = Path.Combine(tempDir, tempFileName);
+            File.Copy(dialog.FileName, _tempCertFilePath, true);
+
+            OnPropertyChanged(nameof(HasTempCertFile));
+            OnPropertyChanged(nameof(HasSavedCertFile));
+            OnPropertyChanged(nameof(CertFileDisplayName));
+
+            StatusMessage = $"Файл выбран: {Path.GetFileName(dialog.FileName)} (будет сохранён при подтверждении)";
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Ошибка выбора файла: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    [RelayCommand]
+    private void RemoveCertificateFile()
+    {
+        if (EditingMaterial == null) return;
+
+        if (!string.IsNullOrEmpty(_tempCertFilePath) && File.Exists(_tempCertFilePath))
+            try { File.Delete(_tempCertFilePath); } catch { }
+        _tempCertFilePath = null;
+
+        if (!string.IsNullOrEmpty(EditingMaterial.CertificateFilePath))
+        {
+            if (_fileService.FileExists(EditingMaterial.CertificateFilePath))
+                File.Delete(EditingMaterial.CertificateFilePath);
+            EditingMaterial.CertificateFilePath = string.Empty;
+        }
+
+        OnPropertyChanged(nameof(HasTempCertFile));
+        OnPropertyChanged(nameof(HasSavedCertFile));
+        OnPropertyChanged(nameof(CertFileDisplayName));
+        StatusMessage = "Файл сертификата удалён";
+    }
+
+    [RelayCommand]
+    private void OpenCertificateFile()
+    {
+        if (SelectedMaterial == null) return;
+        var filePath = SelectedMaterial.CertificateFilePath;
+        if (string.IsNullOrEmpty(filePath)) return;
+
+        if (!_fileService.FileExists(filePath))
+        {
+            SelectedMaterial.CertificateFilePath = string.Empty;
+            MessageBox.Show("Файл сертификата не найден. Возможно, он был удалён или перемещён.",
+                "Файл не найден", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        try { _fileService.OpenFile(filePath); }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Не удалось открыть файл: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    public void HandleCertificateFileDrop(string[] filePaths)
+    {
+        if (EditingMaterial == null || filePaths.Length == 0) return;
+        var sourcePath = filePaths[0];
+        if (!File.Exists(sourcePath)) return;
+
+        try
+        {
+            var tempDir = Path.Combine(Path.GetTempPath(), "AGenerator_Temp");
+            Directory.CreateDirectory(tempDir);
+
+            if (!string.IsNullOrEmpty(_tempCertFilePath) && File.Exists(_tempCertFilePath))
+                File.Delete(_tempCertFilePath);
+
+            var tempFileName = $"cert_{Guid.NewGuid():N}{Path.GetExtension(sourcePath)}";
+            _tempCertFilePath = Path.Combine(tempDir, tempFileName);
+            File.Copy(sourcePath, _tempCertFilePath, true);
+
+            OnPropertyChanged(nameof(HasTempCertFile));
+            OnPropertyChanged(nameof(HasSavedCertFile));
+            OnPropertyChanged(nameof(CertFileDisplayName));
+
+            StatusMessage = $"Файл выбран: {Path.GetFileName(sourcePath)} (будет сохранён при подтверждении)";
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Ошибка выбора файла: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+}
+Код для файла MultiSelectViewModel.cs:
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Linq;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+
+namespace AGenerator.ViewModels;
+
+/// <summary>
+/// Универсальный ViewModel для окна множественного выбора элементов.
+/// Используется для выбора материалов, схем, протоколов и т.д.
+/// </summary>
+public partial class MultiSelectViewModel<T> : ObservableObject where T : class
+{
+    private readonly Func<T, string> _displaySelector;
+    private readonly List<T> _allItems;
+
+    [ObservableProperty]
+    private string _searchText = string.Empty;
+
+    [ObservableProperty]
+    private string _windowTitle = "Выбор элементов";
+
+    /// <summary>
+    /// Доступные элементы (левый список) — фильтруется по SearchText
+    /// </summary>
+    public ObservableCollection<T> AvailableItems { get; } = new();
+
+    /// <summary>
+    /// Выбранные элементы (правый список)
+    /// </summary>
+    public ObservableCollection<T> SelectedItems { get; } = new();
+
+    public MultiSelectViewModel(
+        IEnumerable<T> allItems,
+        IEnumerable<T> initiallySelected,
+        Func<T, string> displaySelector)
+    {
+        _displaySelector = displaySelector;
+        _allItems = allItems.ToList();
+
+        // Заполняем доступные элементы
+        foreach (var item in _allItems)
+            AvailableItems.Add(item);
+
+        // Предвыбранные элементы
+        var selectedSet = new HashSet<T>(initiallySelected);
+        foreach (var item in _allItems)
+        {
+            if (selectedSet.Contains(item))
+                SelectedItems.Add(item);
+        }
+    }
+
+    partial void OnSearchTextChanged(string value)
+    {
+        RefreshAvailableItems();
+    }
+
+    private void RefreshAvailableItems()
+    {
+        AvailableItems.Clear();
+
+        var filtered = string.IsNullOrWhiteSpace(SearchText)
+            ? _allItems
+            : _allItems.Where(i => _displaySelector(i)
+                .Contains(SearchText, StringComparison.OrdinalIgnoreCase));
+
+        foreach (var item in filtered)
+            AvailableItems.Add(item);
+    }
+
+    // ==================== КОМАНДЫ ====================
+
+    [RelayCommand]
+    private void AddSelected(IList<T> selected)
+    {
+        foreach (var item in selected.ToList())
+        {
+            if (!SelectedItems.Contains(item))
+                SelectedItems.Add(item);
+        }
+    }
+
+    [RelayCommand]
+    private void RemoveSelected(IList<T> selected)
+    {
+        foreach (var item in selected.ToList())
+            SelectedItems.Remove(item);
+    }
+
+    [RelayCommand]
+    private void AddAll()
+    {
+        foreach (var item in _allItems)
+        {
+            if (!SelectedItems.Contains(item))
+                SelectedItems.Add(item);
+        }
+    }
+
+    [RelayCommand]
+    private void RemoveAll()
+    {
+        SelectedItems.Clear();
+    }
+}
+Код для файла ObjectSelectionViewModel.cs:
+using System;
+using System.Collections.ObjectModel;
+using System.Linq;
+using System.Threading.Tasks;
+using System.Windows;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using Microsoft.EntityFrameworkCore;
+using AGenerator.Database;
+using AGenerator.Models;
+using AGenerator.Services;
+
+namespace AGenerator.ViewModels
+{
+    public partial class ObjectSelectionViewModel : ObservableObject
+    {
+        private readonly IDbContextFactory<AppDbContext> _contextFactory;
+        private readonly IFileService _fileService;
+
+        [ObservableProperty]
+        private ObservableCollection<ConstructionObject> _objects = new();
+
+        [ObservableProperty]
+        private ConstructionObject? _selectedObject;
+
+        [ObservableProperty]
+        private string _searchText = string.Empty;
+
+        [ObservableProperty]
+        private bool _isCreatingNew;
+
+        [ObservableProperty]
+        private string _newObjectName = string.Empty;
+
+        [ObservableProperty]
+        private string _newObjectAddress = string.Empty;
+
+        public ObjectSelectionViewModel(IDbContextFactory<AppDbContext> contextFactory, IFileService fileService)
+        {
+            _contextFactory = contextFactory;
+            _fileService = fileService;
+            _ = LoadObjectsAsync();
+        }
+
+        private async Task LoadObjectsAsync()
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+            var list = await context.Objects
+                .OrderBy(o => o.Name)
+                .ToListAsync();
+            
+            Objects.Clear();
+            foreach (var obj in list)
+                Objects.Add(obj);
+        }
+
+        partial void OnSearchTextChanged(string value)
+        {
+            FilterObjects();
+        }
+
+        private void FilterObjects()
+        {
+            if (string.IsNullOrWhiteSpace(SearchText))
+            {
+                _ = LoadObjectsAsync();
+                return;
+            }
+
+            var filtered = Objects
+                .Where(o => o.Name.Contains(SearchText, StringComparison.OrdinalIgnoreCase)
+                         || o.Address.Contains(SearchText, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            // Временно заменяем список отфильтрованными данными
+            // Для простоты оставляем полную загрузку, фильтрация на уровне UI
+        }
+
+        [RelayCommand]
+        private void StartCreateNew()
+        {
+            IsCreatingNew = true;
+            NewObjectName = string.Empty;
+            NewObjectAddress = string.Empty;
+        }
+
+        [RelayCommand]
+        private void CancelCreateNew()
+        {
+            IsCreatingNew = false;
+        }
+
+        [RelayCommand]
+        private async Task SaveNewObject()
+        {
+            if (string.IsNullOrWhiteSpace(NewObjectName))
+            {
+                MessageBox.Show("Введите название объекта", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            await using var context = await _contextFactory.CreateDbContextAsync();
+            
+            var newObj = new ConstructionObject
+            {
+                Name = NewObjectName,
+                Address = NewObjectAddress
+            };
+
+            context.Objects.Add(newObj);
+            await context.SaveChangesAsync();
+
+            // Обновляем список и выбираем новый объект
+            await LoadObjectsAsync();
+            SelectedObject = Objects.FirstOrDefault(o => o.Id == newObj.Id);
+            
+            IsCreatingNew = false;
+        }
+
+        [RelayCommand]
+        private void SelectObject()
+        {
+            if (SelectedObject != null)
+            {
+                try
+                {
+                    // Создаем файловую структуру для объекта
+                    _fileService.EnsureFoldersExist(SelectedObject.Id, SelectedObject.Name);
+                    System.Diagnostics.Debug.WriteLine($"[DEBUG] Папки созданы для: {SelectedObject.Name}");
+
+                    // Событие для закрытия окна и передачи объекта в MainWindow
+                    RequestSelect?.Invoke(this, SelectedObject);
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[DEBUG] Ошибка в SelectObject: {ex}");
+                    MessageBox.Show($"Ошибка при подготовке объекта: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+            else
+            {
+                MessageBox.Show("Выберите объект из списка или создайте новый.", "Предупреждение", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+
+        public event EventHandler<ConstructionObject>? RequestSelect;
+    }
+}
+Код для файла ProjectDocsViewModel.cs:
+using System;
+using System.Collections.ObjectModel;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
+using System.Windows;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Win32;
+using AGenerator.Database;
+using AGenerator.Models;
+using AGenerator.Services;
+
+namespace AGenerator.ViewModels;
+
+/// <summary>
+/// ViewModel для управления проектной документацией текущего объекта.
+/// Аналог VBA-листа "т_Проекты".
+/// </summary>
+public partial class ProjectDocsViewModel : ViewModelBase
+{
+    private readonly IDbContextFactory<AppDbContext> _contextFactory;
+    private readonly IFileService _fileService;
+    private readonly int _objectId;
+    private readonly string _objectName;
+
+    [ObservableProperty]
+    private ObservableCollection<ProjectDoc> _projectDocs = new();
+
+    [ObservableProperty]
+    private ProjectDoc? _selectedProjectDoc;
+
+    [ObservableProperty]
+    private bool _isEditing;
+
+    [ObservableProperty]
+    private ProjectDoc _editingProjectDoc = new();
+
+    [ObservableProperty]
+    private string _statusMessage = "Загрузка проектной документации...";
+
+    [ObservableProperty]
+    private bool _isLoading;
+
+    [ObservableProperty]
+    private string _searchText = string.Empty;
+
+    public ProjectDocsViewModel(IDbContextFactory<AppDbContext> contextFactory, IFileService fileService, int objectId, string objectName)
+    {
+        _contextFactory = contextFactory;
+        _fileService = fileService;
+        _objectId = objectId;
+        _objectName = objectName;
+        _ = LoadProjectDocsAsync();
+    }
+
+    private async Task LoadProjectDocsAsync()
+    {
+        IsLoading = true;
+        StatusMessage = "Загрузка проектной документации...";
+
+        try
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+            var list = await context.ProjectDocs
+                .Where(pd => pd.ConstructionObjectId == _objectId)
+                .OrderBy(pd => pd.Code)
+                .ThenBy(pd => pd.Name)
+                .ToListAsync();
+
+            ProjectDocs.Clear();
+            foreach (var doc in list)
+                ProjectDocs.Add(doc);
+
+            StatusMessage = ProjectDocs.Count > 0
+                ? $"Проектных документов: {ProjectDocs.Count}"
+                : "Нет проектной документации. Нажмите «➕ Добавить» для создания.";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Ошибка загрузки: {ex.Message}";
+            System.Diagnostics.Debug.WriteLine($"[ERROR] Ошибка загрузки проектной документации: {ex}");
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    [RelayCommand]
+    private async Task RefreshAsync()
+    {
+        await LoadProjectDocsAsync();
+    }
+
+    [RelayCommand]
+    private void AddNewProjectDoc()
+    {
+        EditingProjectDoc = new ProjectDoc
+        {
+            ConstructionObjectId = _objectId
+        };
+        IsEditing = true;
+    }
+
+    [RelayCommand]
+    private void EditSelectedProjectDoc()
+    {
+        if (SelectedProjectDoc == null) return;
+
+        EditingProjectDoc = new ProjectDoc
+        {
+            Id = SelectedProjectDoc.Id,
+            ConstructionObjectId = SelectedProjectDoc.ConstructionObjectId,
+            Code = SelectedProjectDoc.Code,
+            Name = SelectedProjectDoc.Name,
+            Sheets = SelectedProjectDoc.Sheets,
+            Organization = SelectedProjectDoc.Organization,
+            GIP = SelectedProjectDoc.GIP,
+            FilePath = SelectedProjectDoc.FilePath
+        };
+        IsEditing = true;
+    }
+
+    [RelayCommand]
+    private async Task SaveProjectDoc()
+    {
+        if (string.IsNullOrWhiteSpace(EditingProjectDoc.Code))
+        {
+            MessageBox.Show("Шифр раздела не может быть пустым.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        try
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+
+            if (EditingProjectDoc.Id == 0)
+            {
+                context.ProjectDocs.Add(EditingProjectDoc);
+            }
+            else
+            {
+                var existing = await context.ProjectDocs.FindAsync(EditingProjectDoc.Id);
+                if (existing != null)
+                {
+                    existing.Code = EditingProjectDoc.Code;
+                    existing.Name = EditingProjectDoc.Name;
+                    existing.Sheets = EditingProjectDoc.Sheets;
+                    existing.Organization = EditingProjectDoc.Organization;
+                    existing.GIP = EditingProjectDoc.GIP;
+                    existing.FilePath = EditingProjectDoc.FilePath;
+                }
+            }
+
+            await context.SaveChangesAsync();
+            IsEditing = false;
+            await LoadProjectDocsAsync();
+            StatusMessage = EditingProjectDoc.Id == 0 ? "Документ добавлен" : "Документ обновлён";
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Ошибка сохранения: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    [RelayCommand]
+    private void CancelEdit()
+    {
+        IsEditing = false;
+    }
+
+    [RelayCommand]
+    private async Task DeleteSelectedProjectDoc()
+    {
+        if (SelectedProjectDoc == null) return;
+
+        var result = MessageBox.Show(
+            $"Удалить документ \"{SelectedProjectDoc.Code} — {SelectedProjectDoc.Name}\"?\n\n" +
+            "Это действие нельзя отменить.",
+            "Подтверждение удаления",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning);
+
+        if (result != MessageBoxResult.Yes) return;
+
+        try
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+            var doc = await context.ProjectDocs.FindAsync(SelectedProjectDoc.Id);
+            if (doc != null)
+            {
+                context.ProjectDocs.Remove(doc);
+                await context.SaveChangesAsync();
+                await LoadProjectDocsAsync();
+                StatusMessage = "Документ удалён";
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                $"Ошибка удаления: {ex.Message}",
+                "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    // ==================== КОМАНДЫ ДЛЯ РАБОТЫ С ФАЙЛАМИ ====================
+
+    /// <summary>
+    /// Есть ли файл проекта у редактируемого документа
+    /// </summary>
+    public bool HasProjectFile => !string.IsNullOrEmpty(EditingProjectDoc?.FilePath);
+
+    [RelayCommand]
+    private async Task AttachProjectFile()
+    {
+        var dialog = new OpenFileDialog
+        {
+            Title = "Выберите файл проекта",
+            Filter = "Все файлы (*.*)|*.*|PDF (*.pdf)|*.pdf|DOCX (*.docx)|*.docx|DWG (*.dwg)|*.dwg|Изображения (*.jpg;*.png)|*.jpg;*.png"
+        };
+
+        if (dialog.ShowDialog() != true) return;
+
+        try
+        {
+            await using var stream = File.OpenRead(dialog.FileName);
+            var savedPath = _fileService.SaveProjectFile(
+                _objectId,
+                _objectName,
+                stream,
+                EditingProjectDoc.Name,
+                EditingProjectDoc.Code,
+                Path.GetFileName(dialog.FileName));
+
+            EditingProjectDoc.FilePath = savedPath;
+            OnPropertyChanged(nameof(HasProjectFile));
+
+            // Автосохранение документа
+            await SaveProjectDoc();
+            StatusMessage = $"Файл проекта прикреплён: {Path.GetFileName(savedPath)}";
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Ошибка сохранения файла: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    [RelayCommand]
+    private async Task RemoveProjectFile()
+    {
+        if (EditingProjectDoc == null) return;
+
+        var result = MessageBox.Show("Удалить файл проекта?\n\nФайл будет удалён с диска.",
+            "Подтверждение", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+
+        if (result != MessageBoxResult.Yes) return;
+
+        try
+        {
+            var filePath = EditingProjectDoc.FilePath;
+            EditingProjectDoc.FilePath = string.Empty;
+            OnPropertyChanged(nameof(HasProjectFile));
+
+            // Удаляем файл с диска
+            if (_fileService.FileExists(filePath))
+                File.Delete(filePath);
+
+            await SaveProjectDoc();
+            StatusMessage = "Файл проекта удалён";
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Ошибка удаления файла: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    [RelayCommand]
+    private void OpenProjectFile()
+    {
+        if (SelectedProjectDoc == null || string.IsNullOrEmpty(SelectedProjectDoc.FilePath)) return;
+
+        try
+        {
+            _fileService.OpenFile(SelectedProjectDoc.FilePath);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Не удалось открыть файл: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    /// <summary>
+    /// Обработка Drop файла проекта (вызывается из code-behind)
+    /// </summary>
+    public async Task HandleProjectFileDrop(string[] filePaths)
+    {
+        if (EditingProjectDoc == null || filePaths.Length == 0) return;
+
+        var sourcePath = filePaths[0];
+        if (!File.Exists(sourcePath)) return;
+
+        try
+        {
+            await using var stream = File.OpenRead(sourcePath);
+            var savedPath = _fileService.SaveProjectFile(
+                _objectId,
+                _objectName,
+                stream,
+                EditingProjectDoc.Name,
+                EditingProjectDoc.Code,
+                Path.GetFileName(sourcePath));
+
+            EditingProjectDoc.FilePath = savedPath;
+            OnPropertyChanged(nameof(HasProjectFile));
+
+            await SaveProjectDoc();
+            StatusMessage = $"Файл проекта прикреплён: {Path.GetFileName(savedPath)}";
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Ошибка сохранения файла: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+}
+Код для файла ProtocolsViewModel.cs:
+using System;
+using System.Collections.ObjectModel;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
+using System.Windows;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Win32;
+using AGenerator.Database;
+using AGenerator.Models;
+using AGenerator.Services;
+
+namespace AGenerator.ViewModels;
+
+/// <summary>
+/// ViewModel для управления протоколами испытаний текущего объекта.
+/// Аналог VBA-листа "т_Протоколы".
+/// </summary>
+public partial class ProtocolsViewModel : ViewModelBase
+{
+    private readonly IDbContextFactory<AppDbContext> _contextFactory;
+    private readonly IFileService _fileService;
+    private readonly int _objectId;
+    private readonly string _objectName;
+
+    [ObservableProperty]
+    private ObservableCollection<Protocol> _protocols = new();
+
+    [ObservableProperty]
+    private Protocol? _selectedProtocol;
+
+    [ObservableProperty]
+    private bool _isEditing;
+
+    [ObservableProperty]
+    private Protocol _editingProtocol = new();
+
+    [ObservableProperty]
+    private string _statusMessage = "Загрузка протоколов...";
+
+    [ObservableProperty]
+    private bool _isLoading;
+
+    [ObservableProperty]
+    private string _searchText = string.Empty;
+
+    public ProtocolsViewModel(IDbContextFactory<AppDbContext> contextFactory, IFileService fileService, int objectId, string objectName)
+    {
+        _contextFactory = contextFactory;
+        _fileService = fileService;
+        _objectId = objectId;
+        _objectName = objectName;
+        _ = LoadProtocolsAsync();
+    }
+
+    private async Task LoadProtocolsAsync()
+    {
+        IsLoading = true;
+        StatusMessage = "Загрузка протоколов...";
+
+        try
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+            var list = await context.Protocols
+                .Where(p => p.ConstructionObjectId == _objectId)
+                .OrderByDescending(p => p.Date)
+                .ToListAsync();
+
+            Protocols.Clear();
+            foreach (var protocol in list)
+                Protocols.Add(protocol);
+
+            StatusMessage = Protocols.Count > 0
+                ? $"Протоколов: {Protocols.Count}"
+                : "Нет протоколов. Нажмите «➕ Добавить» для создания.";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Ошибка загрузки: {ex.Message}";
+            System.Diagnostics.Debug.WriteLine($"[ERROR] Ошибка загрузки протоколов: {ex}");
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    [RelayCommand]
+    private async Task RefreshAsync()
+    {
+        await LoadProtocolsAsync();
+    }
+
+    [RelayCommand]
+    private void AddNewProtocol()
+    {
+        EditingProtocol = new Protocol
+        {
+            ConstructionObjectId = _objectId,
+            Date = DateTime.Now,
+            CreatedAt = DateTime.Now
+        };
+        IsEditing = true;
+    }
+
+    [RelayCommand]
+    private void EditSelectedProtocol()
+    {
+        if (SelectedProtocol == null) return;
+
+        EditingProtocol = new Protocol
+        {
+            Id = SelectedProtocol.Id,
+            ConstructionObjectId = SelectedProtocol.ConstructionObjectId,
+            Number = SelectedProtocol.Number,
+            Name = SelectedProtocol.Name,
+            Type = SelectedProtocol.Type,
+            DocumentType = SelectedProtocol.DocumentType,
+            Date = SelectedProtocol.Date,
+            Laboratory = SelectedProtocol.Laboratory,
+            Result = SelectedProtocol.Result,
+            FilePath = SelectedProtocol.FilePath
+        };
+        IsEditing = true;
+    }
+
+    [RelayCommand]
+    private async Task SaveProtocol()
+    {
+        if (string.IsNullOrWhiteSpace(EditingProtocol.Number))
+        {
+            MessageBox.Show("Номер протокола не может быть пустым.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        try
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+
+            if (EditingProtocol.Id == 0)
+            {
+                context.Protocols.Add(EditingProtocol);
+            }
+            else
+            {
+                var existing = await context.Protocols.FindAsync(EditingProtocol.Id);
+                if (existing != null)
+                {
+                    existing.Number = EditingProtocol.Number;
+                    existing.Name = EditingProtocol.Name;
+                    existing.Type = EditingProtocol.Type;
+                    existing.DocumentType = EditingProtocol.DocumentType;
+                    existing.Date = EditingProtocol.Date;
+                    existing.Laboratory = EditingProtocol.Laboratory;
+                    existing.Result = EditingProtocol.Result;
+                    existing.FilePath = EditingProtocol.FilePath;
+                }
+            }
+
+            await context.SaveChangesAsync();
+            IsEditing = false;
+            await LoadProtocolsAsync();
+            StatusMessage = EditingProtocol.Id == 0 ? "Протокол добавлен" : "Протокол обновлён";
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Ошибка сохранения: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    [RelayCommand]
+    private void CancelEdit()
+    {
+        IsEditing = false;
+    }
+
+    [RelayCommand]
+    private async Task DeleteSelectedProtocol()
+    {
+        if (SelectedProtocol == null) return;
+
+        var result = MessageBox.Show(
+            $"Удалить протокол №{SelectedProtocol.Number}?\n\n" +
+            "Это действие нельзя отменить.",
+            "Подтверждение удаления",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning);
+
+        if (result != MessageBoxResult.Yes) return;
+
+        try
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+            var protocol = await context.Protocols.FindAsync(SelectedProtocol.Id);
+            if (protocol != null)
+            {
+                context.Protocols.Remove(protocol);
+                await context.SaveChangesAsync();
+                await LoadProtocolsAsync();
+                StatusMessage = "Протокол удалён";
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                $"Ошибка удаления: {ex.Message}",
+                "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    // ==================== КОМАНДЫ ДЛЯ РАБОТЫ С ФАЙЛАМИ ПРОТОКОЛОВ ====================
+
+    /// <summary>
+    /// Есть ли файл протокола у редактируемого протокола
+    /// </summary>
+    public bool HasProtocolFile => !string.IsNullOrEmpty(EditingProtocol?.FilePath);
+
+    [RelayCommand]
+    private async Task AttachProtocolFile()
+    {
+        var dialog = new OpenFileDialog
+        {
+            Title = "Выберите файл протокола",
+            Filter = "Все файлы (*.*)|*.*|PDF (*.pdf)|*.pdf|DOCX (*.docx)|*.docx|Изображения (*.jpg;*.jpeg;*.png;*.tiff)|*.jpg;*.jpeg;*.png;*.tiff"
+        };
+
+        if (dialog.ShowDialog() != true) return;
+
+        try
+        {
+            await using var stream = File.OpenRead(dialog.FileName);
+            var savedPath = _fileService.SaveProtocolFile(
+                _objectId,
+                _objectName,
+                stream,
+                EditingProtocol.DocumentTypeDisplay,
+                EditingProtocol.Number,
+                EditingProtocol.Date,
+                Path.GetFileName(dialog.FileName));
+
+            EditingProtocol.FilePath = savedPath;
+            OnPropertyChanged(nameof(HasProtocolFile));
+
+            // Автосохранение протокола
+            await SaveProtocol();
+            StatusMessage = $"Файл протокола прикреплён: {Path.GetFileName(savedPath)}";
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Ошибка сохранения файла: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    [RelayCommand]
+    private async Task RemoveProtocolFile()
+    {
+        if (EditingProtocol == null) return;
+
+        var result = MessageBox.Show("Удалить файл протокола?\n\nФайл будет удалён с диска.",
+            "Подтверждение", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+
+        if (result != MessageBoxResult.Yes) return;
+
+        try
+        {
+            var filePath = EditingProtocol.FilePath;
+            EditingProtocol.FilePath = string.Empty;
+            OnPropertyChanged(nameof(HasProtocolFile));
+
+            // Удаляем файл с диска
+            if (_fileService.FileExists(filePath))
+                File.Delete(filePath);
+
+            await SaveProtocol();
+            StatusMessage = "Файл протокола удалён";
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Ошибка удаления файла: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    [RelayCommand]
+    private void OpenProtocolFile()
+    {
+        if (SelectedProtocol == null || string.IsNullOrEmpty(SelectedProtocol.FilePath)) return;
+
+        try
+        {
+            _fileService.OpenFile(SelectedProtocol.FilePath);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Не удалось открыть файл: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    /// <summary>
+    /// Обработка Drop файла протокола (вызывается из code-behind)
+    /// </summary>
+    public async Task HandleProtocolFileDrop(string[] filePaths)
+    {
+        if (EditingProtocol == null || filePaths.Length == 0) return;
+
+        var sourcePath = filePaths[0];
+        if (!File.Exists(sourcePath)) return;
+
+        try
+        {
+            await using var stream = File.OpenRead(sourcePath);
+            var savedPath = _fileService.SaveProtocolFile(
+                _objectId,
+                _objectName,
+                stream,
+                EditingProtocol.DocumentTypeDisplay,
+                EditingProtocol.Number,
+                EditingProtocol.Date,
+                Path.GetFileName(sourcePath));
+
+            EditingProtocol.FilePath = savedPath;
+            OnPropertyChanged(nameof(HasProtocolFile));
+
+            await SaveProtocol();
+            StatusMessage = $"Файл протокола прикреплён: {Path.GetFileName(savedPath)}";
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Ошибка сохранения файла: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+}
+Код для файла SchemasViewModel.cs:
+using System;
+using System.Collections.ObjectModel;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
+using System.Windows;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Win32;
+using AGenerator.Database;
+using AGenerator.Models;
+using AGenerator.Services;
+
+namespace AGenerator.ViewModels;
+
+/// <summary>
+/// ViewModel для управления исполнительными схемами текущего объекта.
+/// Аналог VBA-листа "т_Схемы".
+/// </summary>
+public partial class SchemasViewModel : ViewModelBase
+{
+    private readonly IDbContextFactory<AppDbContext> _contextFactory;
+    private readonly IFileService _fileService;
+    private readonly int _objectId;
+    private readonly string _objectName;
+
+    [ObservableProperty]
+    private ObservableCollection<Schema> _schemas = new();
+
+    [ObservableProperty]
+    private Schema? _selectedSchema;
+
+    [ObservableProperty]
+    private bool _isEditing;
+
+    [ObservableProperty]
+    private Schema _editingSchema = new();
+
+    [ObservableProperty]
+    private string _statusMessage = "Загрузка схем...";
+
+    [ObservableProperty]
+    private bool _isLoading;
+
+    [ObservableProperty]
+    private string _searchText = string.Empty;
+
+    public SchemasViewModel(IDbContextFactory<AppDbContext> contextFactory, IFileService fileService, int objectId, string objectName)
+    {
+        _contextFactory = contextFactory;
+        _fileService = fileService;
+        _objectId = objectId;
+        _objectName = objectName;
+        _ = LoadSchemasAsync();
+    }
+
+    private async Task LoadSchemasAsync()
+    {
+        IsLoading = true;
+        StatusMessage = "Загрузка схем...";
+
+        try
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+            var list = await context.Schemas
+                .Where(s => s.ConstructionObjectId == _objectId)
+                .OrderBy(s => s.Number)
+                .ThenBy(s => s.Name)
+                .ToListAsync();
+
+            Schemas.Clear();
+            foreach (var schema in list)
+                Schemas.Add(schema);
+
+            StatusMessage = Schemas.Count > 0
+                ? $"Схем: {Schemas.Count}"
+                : "Нет схем. Нажмите «➕ Добавить» для создания.";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Ошибка загрузки: {ex.Message}";
+            System.Diagnostics.Debug.WriteLine($"[ERROR] Ошибка загрузки схем: {ex}");
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    [RelayCommand]
+    private async Task RefreshAsync()
+    {
+        await LoadSchemasAsync();
+    }
+
+    [RelayCommand]
+    private void AddNewSchema()
+    {
+        EditingSchema = new Schema
+        {
+            ConstructionObjectId = _objectId,
+            Date = DateTime.Now
+        };
+        IsEditing = true;
+    }
+
+    [RelayCommand]
+    private void EditSelectedSchema()
+    {
+        if (SelectedSchema == null) return;
+
+        EditingSchema = new Schema
+        {
+            Id = SelectedSchema.Id,
+            ConstructionObjectId = SelectedSchema.ConstructionObjectId,
+            Number = SelectedSchema.Number,
+            Name = SelectedSchema.Name,
+            Stage = SelectedSchema.Stage,
+            Date = SelectedSchema.Date,
+            Author = SelectedSchema.Author,
+            FilePath = SelectedSchema.FilePath
+        };
+        IsEditing = true;
+    }
+
+    [RelayCommand]
+    private async Task SaveSchema()
+    {
+        if (string.IsNullOrWhiteSpace(EditingSchema.Number))
+        {
+            MessageBox.Show("Номер схемы не может быть пустым.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        try
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+
+            if (EditingSchema.Id == 0)
+            {
+                context.Schemas.Add(EditingSchema);
+            }
+            else
+            {
+                var existing = await context.Schemas.FindAsync(EditingSchema.Id);
+                if (existing != null)
+                {
+                    existing.Number = EditingSchema.Number;
+                    existing.Name = EditingSchema.Name;
+                    existing.Stage = EditingSchema.Stage;
+                    existing.Date = EditingSchema.Date;
+                    existing.Author = EditingSchema.Author;
+                    existing.FilePath = EditingSchema.FilePath;
+                }
+            }
+
+            await context.SaveChangesAsync();
+            IsEditing = false;
+            await LoadSchemasAsync();
+            StatusMessage = EditingSchema.Id == 0 ? "Схема добавлена" : "Схема обновлена";
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Ошибка сохранения: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    [RelayCommand]
+    private void CancelEdit()
+    {
+        IsEditing = false;
+    }
+
+    [RelayCommand]
+    private async Task DeleteSelectedSchema()
+    {
+        if (SelectedSchema == null) return;
+
+        var result = MessageBox.Show(
+            $"Удалить схему \"{SelectedSchema.Number} — {SelectedSchema.Name}\"?\n\n" +
+            "Это действие нельзя отменить.",
+            "Подтверждение удаления",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning);
+
+        if (result != MessageBoxResult.Yes) return;
+
+        try
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+            var schema = await context.Schemas.FindAsync(SelectedSchema.Id);
+            if (schema != null)
+            {
+                context.Schemas.Remove(schema);
+                await context.SaveChangesAsync();
+                await LoadSchemasAsync();
+                StatusMessage = "Схема удалена";
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                $"Ошибка удаления: {ex.Message}",
+                "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    // ==================== КОМАНДЫ ДЛЯ РАБОТЫ С ФАЙЛАМИ СХЕМ ====================
+
+    /// <summary>
+    /// Есть ли файл схемы у редактируемой схемы
+    /// </summary>
+    public bool HasSchemaFile => !string.IsNullOrEmpty(EditingSchema?.FilePath);
+
+    [RelayCommand]
+    private async Task AttachSchemaFile()
+    {
+        var dialog = new OpenFileDialog
+        {
+            Title = "Выберите файл схемы",
+            Filter = "Все файлы (*.*)|*.*|PDF (*.pdf)|*.pdf|DWG (*.dwg)|*.dwg|Изображения (*.jpg;*.png)|*.jpg;*.png"
+        };
+
+        if (dialog.ShowDialog() != true) return;
+
+        try
+        {
+            await using var stream = File.OpenRead(dialog.FileName);
+            var savedPath = _fileService.SaveSchemaFile(
+                _objectId,
+                _objectName,
+                stream,
+                EditingSchema.Name,
+                EditingSchema.Number,
+                EditingSchema.Date,
+                Path.GetFileName(dialog.FileName));
+
+            EditingSchema.FilePath = savedPath;
+            OnPropertyChanged(nameof(HasSchemaFile));
+
+            // Автосохранение схемы
+            await SaveSchema();
+            StatusMessage = $"Файл схемы прикреплён: {Path.GetFileName(savedPath)}";
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Ошибка сохранения файла: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    [RelayCommand]
+    private async Task RemoveSchemaFile()
+    {
+        if (EditingSchema == null) return;
+
+        var result = MessageBox.Show("Удалить файл схемы?\n\nФайл будет удалён с диска.",
+            "Подтверждение", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+
+        if (result != MessageBoxResult.Yes) return;
+
+        try
+        {
+            var filePath = EditingSchema.FilePath;
+            EditingSchema.FilePath = string.Empty;
+            OnPropertyChanged(nameof(HasSchemaFile));
+
+            // Удаляем файл с диска
+            if (_fileService.FileExists(filePath))
+                File.Delete(filePath);
+
+            await SaveSchema();
+            StatusMessage = "Файл схемы удалён";
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Ошибка удаления файла: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    [RelayCommand]
+    private void OpenSchemaFile()
+    {
+        if (SelectedSchema == null || string.IsNullOrEmpty(SelectedSchema.FilePath)) return;
+
+        try
+        {
+            _fileService.OpenFile(SelectedSchema.FilePath);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Не удалось открыть файл: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    /// <summary>
+    /// Обработка Drop файла схемы (вызывается из code-behind)
+    /// </summary>
+    public async Task HandleSchemaFileDrop(string[] filePaths)
+    {
+        if (EditingSchema == null || filePaths.Length == 0) return;
+
+        var sourcePath = filePaths[0];
+        if (!File.Exists(sourcePath)) return;
+
+        try
+        {
+            await using var stream = File.OpenRead(sourcePath);
+            var savedPath = _fileService.SaveSchemaFile(
+                _objectId,
+                _objectName,
+                stream,
+                EditingSchema.Name,
+                EditingSchema.Number,
+                EditingSchema.Date,
+                Path.GetFileName(sourcePath));
+
+            EditingSchema.FilePath = savedPath;
+            OnPropertyChanged(nameof(HasSchemaFile));
+
+            await SaveSchema();
+            StatusMessage = $"Файл схемы прикреплён: {Path.GetFileName(savedPath)}";
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Ошибка сохранения файла: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+}
+Код для файла ViewModelBase.cs:
+using CommunityToolkit.Mvvm.ComponentModel;
+
+namespace AGenerator.ViewModels;
+
+/// <summary>
+/// Базовый класс для всех ViewModel
+/// </summary>
+public abstract class ViewModelBase : ObservableObject
+{
+}

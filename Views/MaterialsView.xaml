@@ -1,0 +1,320 @@
+﻿<UserControl x:Class="AGenerator.Views.MaterialsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:AGenerator.ViewModels"
+             xmlns:models="clr-namespace:AGenerator.Models"
+             xmlns:converters="clr-namespace:AGenerator.Converters"
+             xmlns:behaviors="clr-namespace:AGenerator.Behaviors"
+             mc:Ignorable="d"
+             d:DesignHeight="450" d:DesignWidth="800"
+             d:DataContext="{d:DesignInstance vm:MaterialsViewModel}">
+
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
+        <converters:NullToBoolConverter x:Key="NullToBoolConverter"/>
+
+        <!-- Стиль для ячеек с переносом текста -->
+        <Style x:Key="WrappingCellText" TargetType="TextBlock">
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="Padding" Value="2"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
+
+        <!-- Контекстное меню -->
+        <ContextMenu x:Key="DataGridContextMenu">
+            <MenuItem Header="✏️ Редактировать"
+                      Command="{Binding PlacementTarget.DataContext.EditSelectedMaterialCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+            <MenuItem Header="📋 Копировать"
+                      Command="{Binding PlacementTarget.DataContext.CopyMaterialCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+            <Separator/>
+            <MenuItem Header="🗑️ Удалить"
+                      Command="{Binding PlacementTarget.DataContext.DeleteSelectedMaterialCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+            <Separator/>
+            <MenuItem Header="🔄 Обновить"
+                      Command="{Binding PlacementTarget.DataContext.RefreshAsyncCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+        </ContextMenu>
+    </UserControl.Resources>
+
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Тулбар -->
+        <Border Grid.Row="0" Background="{DynamicResource GlassBrush}" CornerRadius="12" Padding="15" Margin="0,0,0,10" Effect="{StaticResource GlassShadow}">
+            <StackPanel Orientation="Horizontal">
+                <Button Content="➕ Добавить" Command="{Binding AddNewMaterialCommand}" Style="{StaticResource PrimaryGlassButton}" Padding="10,5" Margin="0,0,5,0"/>
+                <Button Content="✏️ Изменить" Command="{Binding EditSelectedMaterialCommand}" Style="{StaticResource SecondaryGlassButton}" Padding="10,5" Margin="0,0,5,0"
+                        IsEnabled="{Binding SelectedMaterial, Converter={StaticResource NullToBoolConverter}}"/>
+                <Button Content="🗑️ Удалить" Command="{Binding DeleteSelectedMaterialCommand}" Style="{StaticResource SecondaryGlassButton}" Padding="10,5" Margin="0,0,5,0"
+                        IsEnabled="{Binding SelectedMaterial, Converter={StaticResource NullToBoolConverter}}"/>
+                <Button Content="🔄 Обновить" Command="{Binding RefreshAsyncCommand}" Style="{StaticResource GlassButton}" Padding="10,5"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Поиск -->
+        <TextBox Grid.Row="1" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                 Style="{StaticResource GlassTextBox}"
+                 Margin="0,0,0,10" Padding="5" ToolTip="Поиск по названию"/>
+
+        <!-- Таблица материалов -->
+        <DataGrid Grid.Row="2" x:Name="MaterialsDataGrid"
+                  ItemsSource="{Binding Materials}" SelectedItem="{Binding SelectedMaterial}"
+                  AutoGenerateColumns="False" IsReadOnly="True"
+                  CanUserAddRows="False" CanUserDeleteRows="False"
+                  CanUserResizeColumns="True"
+                  MouseDoubleClick="MaterialsDataGrid_MouseDoubleClick"
+                  MouseLeftButtonUp="MaterialsDataGrid_MouseLeftButtonUp"
+                  behaviors:DataGridAutoSizeColumnsBehavior.IsEnabled="True"
+                  ContextMenu="{StaticResource DataGridContextMenu}"
+                  Style="{StaticResource GlassDataGrid}">
+            <DataGrid.Resources>
+                <!-- Стиль для TextBlock в ячейках — перенос текста + автоматическая высота -->
+                <Style TargetType="TextBlock">
+                    <Setter Property="TextWrapping" Value="Wrap"/>
+                    <Setter Property="Padding" Value="2"/>
+                    <Setter Property="VerticalAlignment" Value="Center"/>
+                </Style>
+            </DataGrid.Resources>
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Категория" Width="100" Binding="{Binding Type}"
+                                    ElementStyle="{StaticResource WrappingCellText}"/>
+                <DataGridTextColumn Header="Название" Binding="{Binding Name}" Width="180"
+                                    ElementStyle="{StaticResource WrappingCellText}"/>
+                <DataGridTextColumn Header="Тип док." Width="140" Binding="{Binding DocumentTypeDisplay}"
+                                    ElementStyle="{StaticResource WrappingCellText}"/>
+                <DataGridTextColumn Header="№ док." Width="80" Binding="{Binding CertificateNumber}"
+                                    ElementStyle="{StaticResource WrappingCellText}"/>
+                <DataGridTextColumn Header="Дата док." Width="80" Binding="{Binding CertificateDateText}"
+                                    ElementStyle="{StaticResource WrappingCellText}"/>
+                <DataGridTextColumn Header="Ед. изм." Width="60" Binding="{Binding Unit}"
+                                    ElementStyle="{StaticResource WrappingCellText}"/>
+                <DataGridTextColumn Header="Объём" Width="60" Binding="{Binding Quantity, StringFormat={}{0:N2}}"
+                                    ElementStyle="{StaticResource WrappingCellText}"/>
+                <DataGridTextColumn Header="Производитель" Width="120" Binding="{Binding Manufacturer}"
+                                    ElementStyle="{StaticResource WrappingCellText}"/>
+                <DataGridTextColumn Header="Поставщик" Width="120" Binding="{Binding Supplier}"
+                                    ElementStyle="{StaticResource WrappingCellText}"/>
+                <DataGridTemplateColumn Header="Файл" Width="60">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <Button Content="📎"
+                                    ToolTip="{Binding CertificateFileName, Mode=OneWay}"
+                                    Command="{Binding DataContext.OpenCertificateFileCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                    Visibility="{Binding CertificateFileName, Mode=OneWay, Converter={StaticResource NullToBoolConverter}, ConverterParameter=Inverted}"
+                                    Padding="2" BorderThickness="0" Background="Transparent" Cursor="Hand"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <!-- Модальное окно редактирования -->
+        <Border Grid.Row="0" Grid.RowSpan="3" Background="#CC000000"
+                Visibility="{Binding IsEditing, Converter={StaticResource BoolToVisibility}}" Panel.ZIndex="100">
+            <Border Background="#F0FFFFFF" Width="620" MaxHeight="750"
+                    VerticalAlignment="Center" HorizontalAlignment="Center"
+                    Padding="25" CornerRadius="15" Margin="20"
+                    BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="1"
+                    Effect="{StaticResource GlassShadow}">
+
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel>
+                        <Grid Margin="0,0,0,20">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Материал" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                            <Button Grid.Column="1" Content="✕" Command="{Binding CancelEditCommand}"
+                                    Width="32" Height="32" FontSize="16" HorizontalAlignment="Right" VerticalAlignment="Top"
+                                    Background="Transparent" BorderThickness="0" Cursor="Hand" ToolTip="Закрыть"/>
+                        </Grid>
+
+                        <TextBlock Text="Название:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBox Text="{Binding EditingMaterial.Name, UpdateSourceTrigger=PropertyChanged}"
+                                 Style="{StaticResource GlassTextBox}"
+                                 Margin="0,0,0,12" Padding="5"/>
+
+                        <TextBlock Text="Категория (тип):" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBox Text="{Binding EditingMaterial.Type, UpdateSourceTrigger=PropertyChanged}"
+                                 Style="{StaticResource GlassTextBox}"
+                                 Margin="0,0,0,12" Padding="5"/>
+
+                        <TextBlock Text="Тип документа:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <ComboBox SelectedItem="{Binding EditingMaterial.DocumentType}" Margin="0,0,0,12"
+                                  Style="{StaticResource GlassComboBox}">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock>
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding}" Value="{x:Static models:MaterialDocType.DeclarationOfConformity}">
+                                                        <Setter Property="Text" Value="Декларация о соответствии"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding}" Value="{x:Static models:MaterialDocType.QualityDocument}">
+                                                        <Setter Property="Text" Value="Документ о качестве"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding}" Value="{x:Static models:MaterialDocType.RefusalLetter}">
+                                                        <Setter Property="Text" Value="Отказное письмо"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding}" Value="{x:Static models:MaterialDocType.Passport}">
+                                                        <Setter Property="Text" Value="Паспорт"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding}" Value="{x:Static models:MaterialDocType.QualityPassport}">
+                                                        <Setter Property="Text" Value="Паспорт качества"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding}" Value="{x:Static models:MaterialDocType.SanitaryEpidemiologicalConclusion}">
+                                                        <Setter Property="Text" Value="Сан.-эпид. заключение"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding}" Value="{x:Static models:MaterialDocType.Certificate}">
+                                                        <Setter Property="Text" Value="Свидетельство"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding}" Value="{x:Static models:MaterialDocType.StateRegistrationCertificate}">
+                                                        <Setter Property="Text" Value="Свидетельство о гос.регистрации"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding}" Value="{x:Static models:MaterialDocType.CertificateOfConformity}">
+                                                        <Setter Property="Text" Value="Сертификат соответствия"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding}" Value="{x:Static models:MaterialDocType.TechnicalPassport}">
+                                                        <Setter Property="Text" Value="Технический паспорт"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                            <models:MaterialDocType>DeclarationOfConformity</models:MaterialDocType>
+                            <models:MaterialDocType>QualityDocument</models:MaterialDocType>
+                            <models:MaterialDocType>RefusalLetter</models:MaterialDocType>
+                            <models:MaterialDocType>Passport</models:MaterialDocType>
+                            <models:MaterialDocType>QualityPassport</models:MaterialDocType>
+                            <models:MaterialDocType>SanitaryEpidemiologicalConclusion</models:MaterialDocType>
+                            <models:MaterialDocType>Certificate</models:MaterialDocType>
+                            <models:MaterialDocType>StateRegistrationCertificate</models:MaterialDocType>
+                            <models:MaterialDocType>CertificateOfConformity</models:MaterialDocType>
+                            <models:MaterialDocType>TechnicalPassport</models:MaterialDocType>
+                        </ComboBox>
+
+                        <Grid Margin="0,0,0,12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Margin="0,0,5,0">
+                                <TextBlock Text="Ед. измерения:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                <TextBox Text="{Binding EditingMaterial.Unit, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource GlassTextBox}" Padding="5"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Margin="5,0,0,0">
+                                <TextBlock Text="Объём:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                <TextBox Text="{Binding EditingMaterial.Quantity, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource GlassTextBox}" Padding="5"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <TextBlock Text="ГОСТ №:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBox Text="{Binding EditingMaterial.GostNumber, UpdateSourceTrigger=PropertyChanged}"
+                                 Style="{StaticResource GlassTextBox}"
+                                 Margin="0,0,0,12" Padding="5"/>
+
+                        <!-- № документа и дата в одной строке -->
+                        <Grid Margin="0,0,0,12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="100"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="№ документа:" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"
+                                       VerticalAlignment="Center" Margin="0,0,5,0"/>
+                            <TextBox Grid.Column="1" Text="{Binding EditingMaterial.CertificateNumber, UpdateSourceTrigger=PropertyChanged}"
+                                     Style="{StaticResource GlassTextBox}"
+                                     Padding="5" Margin="0,0,10,0"/>
+                            <TextBlock Grid.Column="2" Text="Дата:" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"
+                                       VerticalAlignment="Center" Margin="0,0,5,0"/>
+                            <TextBox Grid.Column="3" x:Name="CertDateTextBox"
+                                     Text="{Binding EditingMaterial.CertificateDateText, UpdateSourceTrigger=PropertyChanged}"
+                                     Style="{StaticResource GlassTextBox}"
+                                     Padding="5" Width="100" Margin="0,0,5,0"
+                                     ToolTip="Введите дату: 13.08.2015, 08.2015 или 2015"/>
+                            <Button Grid.Column="4" x:Name="BtnPickDate" Content="📅" Padding="6,4"
+                                    Style="{StaticResource GlassButton}"
+                                    Click="BtnPickDate_Click" ToolTip="Выбрать дату"/>
+                            <!-- Popup с календарём -->
+                            <Popup x:Name="CalendarPopup"
+                                   PlacementTarget="{Binding ElementName=BtnPickDate}"
+                                   Placement="Bottom" StaysOpen="False"
+                                   AllowsTransparency="True" PopupAnimation="Fade">
+                                <Border Background="White" BorderBrush="#CCC" BorderThickness="1" Padding="5">
+                                    <Calendar x:Name="CertCalendar" SelectedDatesChanged="CertCalendar_SelectedDatesChanged"/>
+                                </Border>
+                            </Popup>
+                        </Grid>
+
+                        <TextBlock Text="Производитель:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBox Text="{Binding EditingMaterial.Manufacturer, UpdateSourceTrigger=PropertyChanged}"
+                                 Style="{StaticResource GlassTextBox}"
+                                 Margin="0,0,0,12" Padding="5"/>
+
+                        <TextBlock Text="Поставщик:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBox Text="{Binding EditingMaterial.Supplier, UpdateSourceTrigger=PropertyChanged}"
+                                 Style="{StaticResource GlassTextBox}"
+                                 Margin="0,0,0,12" Padding="5"/>
+
+                        <TextBlock Text="Дата доставки:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <DatePicker SelectedDate="{Binding EditingMaterial.DeliveryDate}"
+                                    HorizontalAlignment="Stretch" Margin="0,0,0,15"/>
+
+                        <!-- Зона прикрепления файла -->
+                        <TextBlock Text="📎 Файл сертификата:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <Border x:Name="CertificateDropZone" BorderBrush="#CCC" BorderThickness="2"
+                                Padding="15" Margin="0,0,0,12" CornerRadius="5"
+                                AllowDrop="True" DragOver="CertificateDropZone_DragOver"
+                                Drop="CertificateDropZone_Drop" Background="#FAFAFA">
+                            <StackPanel>
+                                <TextBlock Text="Перетащите файл сюда или нажмите кнопку:"
+                                           Foreground="#666" FontSize="12" Margin="0,0,0,8"/>
+                                <StackPanel Orientation="Horizontal">
+                                    <Button Content="📎 Прикрепить сертификат" Command="{Binding AttachCertificateFileCommand}"
+                                            Style="{StaticResource GlassButton}"
+                                            Padding="10,5" Margin="0,0,10,0"/>
+                                    <Button Content="🗑️ Удалить" Command="{Binding RemoveCertificateFileCommand}"
+                                            Style="{StaticResource SecondaryGlassButton}"
+                                            Padding="10,5" Visibility="{Binding HasTempCertFile, Converter={StaticResource BoolToVisibility}}"/>
+                                </StackPanel>
+                                <TextBlock Margin="0,8,0,0" FontSize="12" Foreground="Orange"
+                                           Visibility="{Binding HasTempCertFile, Converter={StaticResource BoolToVisibility}}">
+                                    <Run Text="⏳ Выбран (будет сохранён): "/>
+                                    <Run Text="{Binding CertFileDisplayName, Mode=OneWay}"/>
+                                </TextBlock>
+                                <TextBlock Margin="0,8,0,0" FontSize="12" Foreground="Green"
+                                           Visibility="{Binding HasSavedCertFile, Converter={StaticResource BoolToVisibility}}">
+                                    <Run Text="✅ Прикреплён: "/>
+                                    <Run Text="{Binding CertFileDisplayName, Mode=OneWay}"/>
+                                </TextBlock>
+                            </StackPanel>
+                        </Border>
+
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+                            <Button Content="💾 Сохранить" Command="{Binding SaveMaterialCommand}"
+                                    Style="{StaticResource PrimaryGlassButton}"
+                                    Padding="15,8" Margin="0,0,10,0" IsDefault="True"/>
+                            <Button Content="❌ Отмена" Command="{Binding CancelEditCommand}"
+                                    Style="{StaticResource SecondaryGlassButton}"
+                                    Padding="15,8" IsCancel="True"/>
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+        </Border>
+    </Grid>
+</UserControl>

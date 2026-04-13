@@ -1,0 +1,28 @@
+{
+  "ApplicationOrder": [
+    {
+      "Key": "Protocols",
+      "DisplayName": "\u041F\u0440\u043E\u0442\u043E\u043A\u043E\u043B\u044B \u0438\u0441\u043F\u044B\u0442\u0430\u043D\u0438\u0439",
+      "IsEnabled": true,
+      "Order": 0
+    },
+    {
+      "Key": "Schemas",
+      "DisplayName": "\u0418\u0441\u043F\u043E\u043B\u043D\u0438\u0442\u0435\u043B\u044C\u043D\u044B\u0435 \u0441\u0445\u0435\u043C\u044B",
+      "IsEnabled": true,
+      "Order": 1
+    },
+    {
+      "Key": "Materials",
+      "DisplayName": "\u041C\u0430\u0442\u0435\u0440\u0438\u0430\u043B\u044B (\u0441\u0435\u0440\u0442\u0438\u0444\u0438\u043A\u0430\u0442\u044B)",
+      "IsEnabled": true,
+      "Order": 2
+    },
+    {
+      "Key": "Manual",
+      "DisplayName": "\u0420\u0443\u0447\u043D\u044B\u0435 \u043F\u0440\u0438\u043B\u043E\u0436\u0435\u043D\u0438\u044F",
+      "IsEnabled": true,
+      "Order": 3
+    }
+  ]
+}

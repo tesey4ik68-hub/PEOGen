@@ -1,0 +1,86 @@
+﻿<Window x:Class="AGenerator.Views.MultiSelectWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="{Binding WindowTitle}" Height="500" Width="850"
+        WindowStartupLocation="CenterOwner"
+        MinHeight="400" MinWidth="600">
+
+    <Window.Resources>
+        <!-- Стили кнопок навигации -->
+        <Style x:Key="NavButton" TargetType="Button">
+            <Setter Property="Width" Value="40"/>
+            <Setter Property="Height" Value="30"/>
+            <Setter Property="Margin" Value="0,3"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="14"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="15">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Поиск -->
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
+            <TextBlock Text="🔍" VerticalAlignment="Center" Margin="0,0,5,0"/>
+            <TextBox Width="300" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" 
+                     ToolTip="Поиск по названию"/>
+        </StackPanel>
+
+        <!-- Основная область: два списка + кнопки -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Левый список: доступные элементы -->
+            <GroupBox Grid.Column="0" Header="Доступные" Margin="0,0,10,0">
+                <ListBox x:Name="AvailableListBox"
+                         ItemsSource="{Binding AvailableItems}"
+                         SelectionMode="Extended"
+                         Padding="5"/>
+            </GroupBox>
+
+            <!-- Кнопки навигации -->
+            <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="10,0">
+                <Button Content="▶" Style="{StaticResource NavButton}" 
+                        Command="{Binding AddSelectedCommand}" 
+                        CommandParameter="{Binding SelectedItems, ElementName=AvailableListBox}"
+                        ToolTip="Добавить выбранные"/>
+                <Button Content="◀" Style="{StaticResource NavButton}" 
+                        Command="{Binding RemoveSelectedCommand}" 
+                        CommandParameter="{Binding SelectedItems, ElementName=SelectedListBox}"
+                        ToolTip="Убрать выбранные"/>
+                <Separator Margin="0,10"/>
+                <Button Content="▶▶" Style="{StaticResource NavButton}" 
+                        Command="{Binding AddAllCommand}" 
+                        ToolTip="Добавить все"/>
+                <Button Content="◀◀" Style="{StaticResource NavButton}" 
+                        Command="{Binding RemoveAllCommand}" 
+                        ToolTip="Убрать все"/>
+            </StackPanel>
+
+            <!-- Правый список: выбранные элементы -->
+            <GroupBox Grid.Column="2" Header="Выбранные" Margin="10,0,0,0">
+                <ListBox x:Name="SelectedListBox"
+                         ItemsSource="{Binding SelectedItems}"
+                         SelectionMode="Extended"
+                         Background="#F0FFF0"
+                         Padding="5"/>
+            </GroupBox>
+        </Grid>
+
+        <!-- Кнопки ОК/Отмена -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,15,0,0">
+            <Button Content="✅ OK" IsDefault="True" Click="Ok_Click" 
+                    Padding="20,8" FontSize="13" Margin="0,0,10,0"/>
+            <Button Content="❌ Отмена" IsCancel="True" Click="Cancel_Click" 
+                    Padding="20,8" FontSize="13"/>
+        </StackPanel>
+    </Grid>
+</Window>

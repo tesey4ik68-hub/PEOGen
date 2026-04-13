@@ -1,0 +1,9 @@
+﻿{
+  "profiles": {
+    "AGenerator": {
+      "commandName": "Project",
+      "workingDirectory": "$(ProjectDir)",
+      "nativeDebugging": true
+    }
+  }
+}

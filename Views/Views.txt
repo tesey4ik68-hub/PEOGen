@@ -1,0 +1,3496 @@
+Код для файла ActsView.xaml:
+<UserControl x:Class="AGenerator.Views.ActsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:sys="clr-namespace:System;assembly=mscorlib"
+             mc:Ignorable="d"
+             d:DesignHeight="600" d:DesignWidth="1200">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Тулбар (Glass) -->
+        <Border Grid.Row="0" Background="{DynamicResource GlassBrush}" CornerRadius="12" Padding="15" Margin="0,0,0,10" Effect="{StaticResource GlassShadow}">
+            <StackPanel Orientation="Horizontal">
+                <Button Content="➕ Новый акт" Command="{Binding AddNewActCommand}"
+                        Style="{StaticResource PrimaryGlassButton}" Margin="0,0,8,0"/>
+                <Button Content="🗑️ Удалить" Command="{Binding DeleteSelectedActCommand}"
+                        Style="{StaticResource SecondaryGlassButton}"
+                        IsEnabled="{Binding SelectedAct, Converter={StaticResource NullToBoolConverter}}"
+                        Margin="0,0,8,0"/>
+                <Button Content="🔄 Обновить" Command="{Binding RefreshCommand}"
+                        Style="{StaticResource GlassButton}"
+                        Margin="0,0,8,0"/>
+                <Button Content="📑 Генерация" Command="{Binding GenerateDocumentCommand}"
+                        CommandParameter="{Binding SelectedAct}"
+                        Style="{StaticResource PrimaryGlassButton}"
+                        IsEnabled="{Binding SelectedAct, Converter={StaticResource NullToBoolConverter}}"
+                        Margin="0,0,8,0"/>
+
+                <TextBlock Text="🔍" VerticalAlignment="Center" Margin="10,0,5,0" Foreground="{StaticResource TextSecondaryBrush}"/>
+                <TextBox Width="250" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                         Style="{StaticResource GlassTextBox}"
+                         ToolTip="Поиск по названию работ или номеру акта"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Таблица актов с горизонтальным скроллом -->
+        <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+            <DataGrid x:Name="MyDataGrid"
+                      ItemsSource="{Binding Acts}"
+                      SelectedItem="{Binding SelectedAct}"
+                      AutoGenerateColumns="False"
+                      CanUserAddRows="False"
+                      CanUserDeleteRows="False"
+                      IsReadOnly="False"
+                      AlternatingRowBackground="#F9F9F9"
+                      GridLinesVisibility="Horizontal"
+                      HeadersVisibility="Column"
+                      SelectionMode="Single"
+                      HorizontalScrollBarVisibility="Disabled">
+
+                <DataGrid.Columns>
+                    <!-- ==================== ОСНОВНЫЕ ПОЛЯ ==================== -->
+
+                    <!-- 1. Тип акта (текст → ComboBox при редактировании) -->
+                    <DataGridTemplateColumn Header="Тип" Width="110">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Type}" VerticalAlignment="Center" Margin="5,0"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                        <DataGridTemplateColumn.CellEditingTemplate>
+                            <DataTemplate>
+                                <ComboBox SelectedItem="{Binding Type, UpdateSourceTrigger=PropertyChanged}"
+                                          Margin="2">
+                                    <ComboBox.ItemsSource>
+                                        <x:Array Type="{x:Type sys:String}">
+                                            <sys:String>АОСР</sys:String>
+                                            <sys:String>АООК</sys:String>
+                                            <sys:String>АОИО</sys:String>
+                                            <sys:String>АВК</sys:String>
+                                            <sys:String>АГИ</sys:String>
+                                            <sys:String>АИИО</sys:String>
+                                            <sys:String>АОГРОКС</sys:String>
+                                            <sys:String>АОСР3</sys:String>
+                                            <sys:String>АОУСИТО</sys:String>
+                                            <sys:String>АПрОб</sys:String>
+                                            <sys:String>АРООКС</sys:String>
+                                            <sys:String>ОтЭфД</sys:String>
+                                        </x:Array>
+                                    </ComboBox.ItemsSource>
+                                </ComboBox>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellEditingTemplate>
+                    </DataGridTemplateColumn>
+
+                    <!-- 2. Номер акта -->
+                    <DataGridTextColumn Header="Номер" Width="90"
+                                        Binding="{Binding ActNumber, UpdateSourceTrigger=PropertyChanged}"/>
+
+                    <!-- 3. Итоговый номер (Readonly, вычисляемое) -->
+                    <DataGridTextColumn Header="Итог №" Width="110"
+                                        Binding="{Binding FinalActNumber}" IsReadOnly="True" Foreground="#555"/>
+
+                    <!-- 4. Дата акта (DatePicker) -->
+                    <DataGridTemplateColumn Header="Дата акта" Width="110">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding ActDate, StringFormat={}{0:dd.MM.yyyy}}" 
+                                           VerticalAlignment="Center" Margin="5,0"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                        <DataGridTemplateColumn.CellEditingTemplate>
+                            <DataTemplate>
+                                <DatePicker SelectedDate="{Binding ActDate, UpdateSourceTrigger=PropertyChanged}" 
+                                            Margin="2"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellEditingTemplate>
+                    </DataGridTemplateColumn>
+
+                    <!-- 5. Дата начала работ -->
+                    <DataGridTemplateColumn Header="Дата начала" Width="110">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding WorkStartDate, StringFormat={}{0:dd.MM.yyyy}}" 
+                                           VerticalAlignment="Center" Margin="5,0"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                        <DataGridTemplateColumn.CellEditingTemplate>
+                            <DataTemplate>
+                                <DatePicker SelectedDate="{Binding WorkStartDate, UpdateSourceTrigger=PropertyChanged}" 
+                                            Margin="2"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellEditingTemplate>
+                    </DataGridTemplateColumn>
+
+                    <!-- 6. Дата окончания работ -->
+                    <DataGridTemplateColumn Header="Дата окончания" Width="110">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding WorkEndDate, StringFormat={}{0:dd.MM.yyyy}}" 
+                                           VerticalAlignment="Center" Margin="5,0"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                        <DataGridTemplateColumn.CellEditingTemplate>
+                            <DataTemplate>
+                                <DatePicker SelectedDate="{Binding WorkEndDate, UpdateSourceTrigger=PropertyChanged}" 
+                                            Margin="2"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellEditingTemplate>
+                    </DataGridTemplateColumn>
+
+                    <!-- ==================== НАИМЕНОВАНИЕ И СТРУКТУРА ==================== -->
+
+                    <!-- 7. Наименование работ -->
+                    <DataGridTextColumn Header="Наименование работ" Width="200"
+                                        Binding="{Binding WorkName, UpdateSourceTrigger=PropertyChanged}"/>
+
+                    <!-- 8. Автоназвание (Readonly, вычисляемое) -->
+                    <DataGridTextColumn Header="Автоназвание" Width="250"
+                                        Binding="{Binding AutoWorkName}" IsReadOnly="True" Foreground="#444"/>
+
+                    <!-- 9. Объём -->
+                    <DataGridTextColumn Header="Объём" Width="80"
+                                        Binding="{Binding Volume, UpdateSourceTrigger=PropertyChanged}"/>
+
+                    <!-- 10. Ед.изм. -->
+                    <DataGridTextColumn Header="Ед.изм." Width="80"
+                                        Binding="{Binding UnitOfMeasure, UpdateSourceTrigger=PropertyChanged}"/>
+
+                    <!-- ==================== КОЛОДЦЫ / КАМЕРЫ ==================== -->
+
+                    <!-- 11. Тип колодца (текст → ComboBox при редактировании) -->
+                    <DataGridTemplateColumn Header="Тип колодца" Width="120">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding ManholeType}" VerticalAlignment="Center" Margin="5,0"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                        <DataGridTemplateColumn.CellEditingTemplate>
+                            <DataTemplate>
+                                <ComboBox SelectedItem="{Binding ManholeType, UpdateSourceTrigger=PropertyChanged}"
+                                          Margin="2">
+                                    <ComboBox.ItemsSource>
+                                        <x:Array Type="{x:Type sys:String}">
+                                            <sys:String>Колодец</sys:String>
+                                            <sys:String>Камера</sys:String>
+                                            <sys:String>Дождеприемная решетка</sys:String>
+                                        </x:Array>
+                                    </ComboBox.ItemsSource>
+                                </ComboBox>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellEditingTemplate>
+                    </DataGridTemplateColumn>
+
+                    <!-- 12. Колодец -->
+                    <DataGridTextColumn Header="Колодец" Width="100"
+                                        Binding="{Binding Manhole, UpdateSourceTrigger=PropertyChanged}"/>
+
+                    <!-- 13. Интервал -->
+                    <DataGridTextColumn Header="Интервал" Width="100"
+                                        Binding="{Binding Interval, UpdateSourceTrigger=PropertyChanged}"/>
+
+                    <!-- ==================== СВЯЗИ ==================== -->
+
+                    <!-- 21. Связь ИД (ComboBox) -->
+                    <DataGridTemplateColumn Header="Связь ИД" Width="150">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding RelatedAct.WorkName}" VerticalAlignment="Center" Margin="5,0"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                        <DataGridTemplateColumn.CellEditingTemplate>
+                            <DataTemplate>
+                                <ComboBox ItemsSource="{Binding DataContext.AvailableActsForLink, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                          SelectedValue="{Binding RelatedActId, UpdateSourceTrigger=PropertyChanged}"
+                                          DisplayMemberPath="WorkName"
+                                          SelectedValuePath="Id"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellEditingTemplate>
+                    </DataGridTemplateColumn>
+
+                    <!-- 22. Связь АООК (ComboBox) -->
+                    <DataGridTemplateColumn Header="Связь АООК" Width="150">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding RelatedAook.WorkName}" VerticalAlignment="Center" Margin="5,0"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                        <DataGridTemplateColumn.CellEditingTemplate>
+                            <DataTemplate>
+                                <ComboBox ItemsSource="{Binding DataContext.AvailableActsForLink, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                          SelectedValue="{Binding RelatedAookId, UpdateSourceTrigger=PropertyChanged}"
+                                          DisplayMemberPath="WorkName"
+                                          SelectedValuePath="Id"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellEditingTemplate>
+                    </DataGridTemplateColumn>
+
+                    <!-- ==================== КНОПКИ ВЫБОРА КОЛЛЕКЦИЙ ==================== -->
+
+                    <!-- 14. Материалы (текст + кнопка) -->
+                    <DataGridTemplateColumn Header="Материалы" Width="200">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="{Binding MaterialsDisplay}" VerticalAlignment="Center"
+                                               Margin="3,0" TextWrapping="Wrap" MaxWidth="160"
+                                               ToolTip="{Binding MaterialsDisplay}"/>
+                                    <Button Content="✏️"
+                                            Command="{Binding DataContext.EditMaterialsCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                            CommandParameter="{Binding}"
+                                            ToolTip="Выбор материалов"
+                                            Margin="3,0,0,0"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+
+                    <!-- 15. Схемы (текст + кнопка) -->
+                    <DataGridTemplateColumn Header="Схемы" Width="200">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="{Binding SchemasDisplay}" VerticalAlignment="Center"
+                                               Margin="3,0" TextWrapping="Wrap" MaxWidth="160"
+                                               ToolTip="{Binding SchemasDisplay}"/>
+                                    <Button Content="✏️"
+                                            Command="{Binding DataContext.EditSchemasCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                            CommandParameter="{Binding}"
+                                            ToolTip="Исполнительные схемы"
+                                            Margin="3,0,0,0"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+
+                    <!-- 16. Проектная документация (текст + кнопка-заглушка) -->
+                    <DataGridTemplateColumn Header="Проект" Width="200">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="{Binding ProjectDocumentation}" VerticalAlignment="Center"
+                                               Margin="3,0" TextWrapping="Wrap" MaxWidth="160"
+                                               ToolTip="{Binding ProjectDocumentation}"
+                                               Foreground="#888"/>
+                                    <Button Content="✏️"
+                                            Command="{Binding DataContext.EditProjectDocsCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                            CommandParameter="{Binding}"
+                                            ToolTip="Проектная / рабочая документация"
+                                            Margin="3,0,0,0"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+
+                    <!-- 17. Нормативы (текст + кнопка-заглушка) -->
+                    <DataGridTemplateColumn Header="Нормативы" Width="200">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="{Binding StandardReference}" VerticalAlignment="Center"
+                                               Margin="3,0" TextWrapping="Wrap" MaxWidth="160"
+                                               ToolTip="{Binding StandardReference}"
+                                               Foreground="#888"/>
+                                    <Button Content="✏️"
+                                            Command="{Binding DataContext.EditRegulatoryDocsCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                            CommandParameter="{Binding}"
+                                            ToolTip="Выполнено в соответствии с"
+                                            Margin="3,0,0,0"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+
+                    <!-- 18. Протоколы (текст + кнопка) -->
+                    <DataGridTemplateColumn Header="Протоколы" Width="200">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="{Binding ProtocolsDisplay}" VerticalAlignment="Center"
+                                               Margin="3,0" TextWrapping="Wrap" MaxWidth="160"
+                                               ToolTip="{Binding ProtocolsDisplay}"/>
+                                    <Button Content="✏️"
+                                            Command="{Binding DataContext.EditProtocolsCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                            CommandParameter="{Binding}"
+                                            ToolTip="Результаты экспертиз и испытаний"
+                                            Margin="3,0,0,0"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+
+                    <!-- ==================== ПОДПИСАНТЫ (ComboBox по сотрудникам) ==================== -->
+
+                    <!-- 28. СК Заказчика -->
+                    <DataGridTemplateColumn Header="СК Заказчика" Width="140">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding CustomerRep.FullName}" VerticalAlignment="Center" Margin="5,0"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                        <DataGridTemplateColumn.CellEditingTemplate>
+                            <DataTemplate>
+                                <ComboBox ItemsSource="{Binding DataContext.Employees, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                          SelectedValue="{Binding CustomerRepId, UpdateSourceTrigger=PropertyChanged}"
+                                          DisplayMemberPath="FullName"
+                                          SelectedValuePath="Id"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellEditingTemplate>
+                    </DataGridTemplateColumn>
+
+                    <!-- 29. СК Генподрядчика -->
+                    <DataGridTemplateColumn Header="СК Генподрядчика" Width="140">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding GenContractorRep.FullName}" VerticalAlignment="Center" Margin="5,0"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                        <DataGridTemplateColumn.CellEditingTemplate>
+                            <DataTemplate>
+                                <ComboBox ItemsSource="{Binding DataContext.Employees, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                          SelectedValue="{Binding GenContractorRepId, UpdateSourceTrigger=PropertyChanged}"
+                                          DisplayMemberPath="FullName"
+                                          SelectedValuePath="Id"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellEditingTemplate>
+                    </DataGridTemplateColumn>
+
+                    <!-- 30. Подрядчик -->
+                    <DataGridTemplateColumn Header="Подрядчик" Width="140">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding ContractorRep.FullName}" VerticalAlignment="Center" Margin="5,0"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                        <DataGridTemplateColumn.CellEditingTemplate>
+                            <DataTemplate>
+                                <ComboBox ItemsSource="{Binding DataContext.Employees, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                          SelectedValue="{Binding ContractorRepId, UpdateSourceTrigger=PropertyChanged}"
+                                          DisplayMemberPath="FullName"
+                                          SelectedValuePath="Id"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellEditingTemplate>
+                    </DataGridTemplateColumn>
+
+                    <!-- 31. Авторский надзор -->
+                    <DataGridTemplateColumn Header="Авторский надзор" Width="140">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding DesignerRep.FullName}" VerticalAlignment="Center" Margin="5,0"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                        <DataGridTemplateColumn.CellEditingTemplate>
+                            <DataTemplate>
+                                <ComboBox ItemsSource="{Binding DataContext.Employees, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                          SelectedValue="{Binding AuthorSupervisionId, UpdateSourceTrigger=PropertyChanged}"
+                                          DisplayMemberPath="FullName"
+                                          SelectedValuePath="Id"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellEditingTemplate>
+                    </DataGridTemplateColumn>
+
+                    <!-- ==================== ДОП. ПОЛЯ ==================== -->
+
+                    <!-- 32. Последующие работы -->
+                    <DataGridTemplateColumn Header="Посл. работы" Width="150">
+                        <DataGridTemplateColumn.CellEditingTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBox Width="110" Text="{Binding SubsequentWork, UpdateSourceTrigger=PropertyChanged}"/>
+                                    <Button Content="🔍" 
+                                            Command="{Binding DataContext.SelectSubsequentWorkCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" 
+                                            CommandParameter="{Binding}"
+                                            Margin="5,0,0,0"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellEditingTemplate>
+                    </DataGridTemplateColumn>
+
+                    <!-- 33. Приложения -->
+                    <DataGridTextColumn Header="Приложения" Width="120"
+                                        Binding="{Binding Appendix, UpdateSourceTrigger=PropertyChanged}"/>
+
+                    <!-- 34. Кол-во экз. -->
+                    <DataGridTextColumn Header="Экз." Width="50"
+                                        Binding="{Binding CopiesCount, UpdateSourceTrigger=PropertyChanged}"/>
+
+                    <!-- 35. Доп. сведения -->
+                    <DataGridTextColumn Header="Доп. сведения" Width="150"
+                                        Binding="{Binding AdditionalInfo, UpdateSourceTrigger=PropertyChanged}"/>
+
+                    <!-- ==================== БЛОК АООК ==================== -->
+
+                    <!-- 36. % нагрузки -->
+                    <DataGridTextColumn Header="% нагрузки" Width="90"
+                                        Binding="{Binding LoadPercentage, UpdateSourceTrigger=PropertyChanged}"/>
+
+                    <!-- 37. Условия полного нагружения -->
+                    <DataGridTextColumn Header="Условия нагружения" Width="180"
+                                        Binding="{Binding FullLoadConditions, UpdateSourceTrigger=PropertyChanged}"/>
+
+                    <!-- 38. Статус -->
+                    <DataGridTextColumn Header="Статус" Width="100"
+                                        Binding="{Binding Status, UpdateSourceTrigger=PropertyChanged}"/>
+                </DataGrid.Columns>
+            </DataGrid>
+        </ScrollViewer>
+    </Grid>
+</UserControl>
+Код для файла ActsView.xaml.cs:
+using System.Windows.Controls;
+using AGenerator.Models;
+
+namespace AGenerator.Views
+{
+    /// <summary>
+    /// Interaction logic for ActsView.xaml
+    /// </summary>
+    public partial class ActsView : UserControl
+    {
+        public ActsView()
+        {
+            InitializeComponent();
+
+            // Подписка на событие окончания редактирования ячейки
+            // Вызывает пересчёт вычисляемых полей и сохранение в БД
+            MyDataGrid.CellEditEnding += MyDataGrid_CellEditEnding;
+        }
+
+        private void MyDataGrid_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
+        {
+            // Пересчёт и сохранение только при фактическом изменении (EditingElementLostFocus)
+            if (e.EditAction == DataGridEditAction.Commit && e.Row.Item is Act act)
+            {
+                if (DataContext is ViewModels.ActsViewModel vm)
+                {
+                    // Пересчитываем вычисляемые поля и сохраняем
+                    vm.RecalculateAndSaveAct(act);
+                }
+            }
+        }
+    }
+}
+Код для файла ColorPickerWindow.xaml.cs:
+using System;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Input;
+using System.Windows.Media;
+
+namespace AGenerator.Views;
+
+/// <summary>
+/// Окно выбора цвета с палитрой
+/// </summary>
+public partial class ColorPickerWindow : Window
+{
+    public string SelectedColor { get; private set; } = "#FFFFFF";
+
+    public ColorPickerWindow(string initialColor)
+    {
+        SelectedColor = initialColor;
+        Title = "Выбор цвета";
+        Width = 340;
+        Height = 450; // Увеличено на 30% (320 * 1.3 = 416)
+        MinWidth = 280;
+        MinHeight = 350; // Увеличено на 30% (250 * 1.3 = 325)
+        WindowStartupLocation = WindowStartupLocation.CenterOwner;
+        ResizeMode = ResizeMode.CanResize;
+        ShowInTaskbar = false;
+
+        var mainGrid = new Grid();
+        mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        mainGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+        // Фон с градиентом
+        mainGrid.Background = new LinearGradientBrush(
+            (Color)ColorConverter.ConvertFromString("#4FC3F7"),
+            (Color)ColorConverter.ConvertFromString("#2196F3"),
+            new Point(0, 0), new Point(1, 1));
+
+        // Белая панель
+        var panel = new Border
+        {
+            Background = new SolidColorBrush(Color.FromArgb(0xF0, 0xFF, 0xFF, 0xFF)),
+            CornerRadius = new CornerRadius(12),
+            Margin = new Thickness(10),
+            Effect = new System.Windows.Media.Effects.DropShadowEffect
+            {
+                Color = Colors.Black,
+                Opacity = 0.15,
+                BlurRadius = 20,
+                ShadowDepth = 0
+            }
+        };
+
+        var contentPanel = new StackPanel { Margin = new Thickness(15) };
+
+        // Заголовок
+        contentPanel.Children.Add(new TextBlock
+        {
+            Text = "Выберите цвет",
+            FontSize = 15,
+            FontWeight = FontWeights.SemiBold,
+            Foreground = ParseBrush("#2D3748"),
+            Margin = new Thickness(0, 0, 0, 10)
+        });
+
+        // Превью
+        var previewPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 12) };
+        var previewBorder = new Border
+        {
+            Width = 32,
+            Height = 32,
+            CornerRadius = new CornerRadius(5),
+            Background = ParseBrush(initialColor),
+            BorderBrush = Brushes.LightGray,
+            BorderThickness = new Thickness(1),
+            Margin = new Thickness(0, 0, 8, 0)
+        };
+        var colorLabel = new TextBlock
+        {
+            Text = initialColor,
+            FontSize = 13,
+            VerticalAlignment = VerticalAlignment.Center,
+            FontFamily = new FontFamily("Consolas"),
+            Foreground = ParseBrush("#2D3748")
+        };
+        previewPanel.Children.Add(previewBorder);
+        previewPanel.Children.Add(colorLabel);
+        contentPanel.Children.Add(previewPanel);
+
+        // Палитра в ScrollViewer
+        var scrollViewer = new ScrollViewer
+        {
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+            MaxHeight = 234 // Увеличено на 30% (180 * 1.3 = 234)
+        };
+
+        var palette = new WrapPanel { Orientation = Orientation.Horizontal };
+        var colors = new[]
+        {
+            "#FF0000", "#FF5722", "#FF9800", "#FFC107", "#FFEB3B", "#CDDC39",
+            "#8BC34A", "#4CAF50", "#009688", "#00BCD4", "#03A9F4", "#2196F3",
+            "#3F51B5", "#673AB7", "#9C27B0", "#E91E63", "#F44336", "#795548",
+            "#9E9E9E", "#607D8B", "#FFFFFF", "#000000", "#4FC3F7", "#2196F3",
+            "#66BB6A", "#43A047", "#FFA726", "#FB8C00", "#AB47BC", "#8E24AA",
+            "#78909C", "#546E7A", "#1976D2", "#2E7D32", "#E65100", "#6A1B9A",
+            "#EF5350", "#EC407A", "#BA68C8", "#7E57C2", "#5C6BC0", "#42A5F5",
+            "#29B6F6", "#26C6DA", "#26A69A", "#66BB6A", "#9CCC65", "#D4E157",
+            "#FFEE58", "#FFCA28", "#FFA726", "#FF7043", "#8D6E63", "#BDBDBD"
+        };
+
+        foreach (var color in colors)
+        {
+            var btn = new Button
+            {
+                Width = 28,
+                Height = 28,
+                Margin = new Thickness(2),
+                Background = ParseBrush(color),
+                BorderBrush = Brushes.LightGray,
+                BorderThickness = new Thickness(1),
+                Cursor = Cursors.Hand,
+                ToolTip = color
+            };
+
+            btn.Click += (s, e) =>
+            {
+                SelectedColor = color;
+                previewBorder.Background = ParseBrush(color);
+                colorLabel.Text = color;
+            };
+
+            palette.Children.Add(btn);
+        }
+
+        scrollViewer.Content = palette;
+        contentPanel.Children.Add(scrollViewer);
+
+        // Кнопки
+        var btnPanel = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Margin = new Thickness(0, 12, 0, 0)
+        };
+
+        // Получаем цвет акцента из ресурсов
+        var accentColor = Color.FromRgb(0x66, 0x7E, 0xEA); // Значение по умолчанию
+        if (Application.Current.Resources.Contains("AccentColor"))
+        {
+            accentColor = (Color)Application.Current.Resources["AccentColor"];
+        }
+
+        // Вычисляем контрастный цвет текста для кнопки
+        var luminance = (0.299 * accentColor.R + 0.587 * accentColor.G + 0.114 * accentColor.B) / 255.0;
+        var buttonText = luminance < 0.5 ? Brushes.White : ParseBrush("#1A202C");
+
+        var okBtn = new Button
+        {
+            Content = "✅ OK",
+            Padding = new Thickness(18, 7, 18, 7),
+            Margin = new Thickness(0, 0, 8, 0),
+            IsDefault = true,
+            Cursor = Cursors.Hand,
+            Background = new SolidColorBrush(accentColor),
+            Foreground = buttonText,
+            BorderThickness = new Thickness(0),
+            FontWeight = FontWeights.SemiBold
+        };
+        okBtn.Click += (s, e) => { DialogResult = true; Close(); };
+
+        var cancelBtn = new Button
+        {
+            Content = "❌ Отмена",
+            Padding = new Thickness(18, 7, 18, 7),
+            IsCancel = true,
+            Cursor = Cursors.Hand,
+            Background = ParseBrush("#E0E0E0"),
+            Foreground = ParseBrush("#555"),
+            BorderThickness = new Thickness(0),
+            FontWeight = FontWeights.SemiBold
+        };
+        cancelBtn.Click += (s, e) => { DialogResult = false; Close(); };
+
+        btnPanel.Children.Add(okBtn);
+        btnPanel.Children.Add(cancelBtn);
+        contentPanel.Children.Add(btnPanel);
+
+        panel.Child = contentPanel;
+        Grid.SetRow(panel, 0);
+        Grid.SetRowSpan(panel, 3);
+        mainGrid.Children.Add(panel);
+
+        Content = mainGrid;
+    }
+
+    private static Brush ParseBrush(string hex)
+    {
+        try { return new SolidColorBrush((Color)ColorConverter.ConvertFromString(hex)); }
+        catch { return Brushes.White; }
+    }
+}
+<UserControl x:Class="AGenerator.Views.EmployeesView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:AGenerator.ViewModels"
+             xmlns:models="clr-namespace:AGenerator.Models"
+             xmlns:converters="clr-namespace:AGenerator.Converters"
+             mc:Ignorable="d"
+             d:DesignHeight="450" d:DesignWidth="800"
+             d:DataContext="{d:DesignInstance vm:EmployeesViewModel}">
+
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
+        <converters:NullToBoolConverter x:Key="NullToBoolConverter"/>
+        <converters:RepresentativeTypeToStringConverter x:Key="RoleToStringConverter"/>
+
+        <!-- DataTemplate для отображения ролей в ComboBox -->
+        <DataTemplate x:Key="RoleItemTemplate">
+            <TextBlock Text="{Binding Converter={StaticResource RoleToStringConverter}}"/>
+        </DataTemplate>
+
+        <!-- Стиль для ячеек с переносом текста -->
+        <Style x:Key="WrappingCellText" TargetType="TextBlock">
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="Padding" Value="2"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
+
+        <!-- Контекстное меню таблицы -->
+        <ContextMenu x:Key="DataGridContextMenu">
+            <MenuItem Header="✏️ Редактировать"
+                      Command="{Binding PlacementTarget.DataContext.EditSelectedEmployeeCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+            <MenuItem Header="📋 Копировать"
+                      Command="{Binding PlacementTarget.DataContext.CopyEmployeeCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+            <Separator/>
+            <MenuItem Header="🗑️ Удалить"
+                      Command="{Binding PlacementTarget.DataContext.DeleteSelectedEmployeeCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+            <Separator/>
+            <MenuItem Header="🔄 Обновить"
+                      Command="{Binding PlacementTarget.DataContext.RefreshAsyncCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+        </ContextMenu>
+    </UserControl.Resources>
+
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Тулбар -->
+        <Border Grid.Row="0" Background="{DynamicResource GlassBrush}" CornerRadius="12" Padding="15" Margin="0,0,0,10" Effect="{StaticResource GlassShadow}">
+            <StackPanel Orientation="Horizontal">
+                <Button Content="➕ Добавить"
+                        Command="{Binding AddNewEmployeeCommand}"
+                        Style="{StaticResource PrimaryGlassButton}"
+                        Padding="10,5" Margin="0,0,5,0"/>
+                <Button Content="✏️ Изменить"
+                        Command="{Binding EditSelectedEmployeeCommand}"
+                        Style="{StaticResource SecondaryGlassButton}"
+                        Padding="10,5" Margin="0,0,5,0"
+                        IsEnabled="{Binding SelectedEmployee, Converter={StaticResource NullToBoolConverter}}"/>
+                <Button Content="🗑️ Удалить"
+                        Command="{Binding DeleteSelectedEmployeeCommand}"
+                        Style="{StaticResource SecondaryGlassButton}"
+                        Padding="10,5" Margin="0,0,5,0"
+                        IsEnabled="{Binding SelectedEmployee, Converter={StaticResource NullToBoolConverter}}"/>
+                <Button Content="🔄 Обновить"
+                        Command="{Binding RefreshAsyncCommand}"
+                        Style="{StaticResource GlassButton}"
+                        Padding="10,5"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Поиск -->
+        <TextBox Grid.Row="1"
+                 Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                 Style="{StaticResource GlassTextBox}"
+                 Margin="0,0,0,10"
+                 Padding="5"
+                 ToolTip="Поиск по ФИО"/>
+
+        <!-- Таблица сотрудников -->
+        <DataGrid Grid.Row="2"
+                  x:Name="EmployeesDataGrid"
+                  ItemsSource="{Binding Employees}"
+                  SelectedItem="{Binding SelectedEmployee}"
+                  SelectionMode="Extended"
+                  AutoGenerateColumns="False"
+                  IsReadOnly="True"
+                  CanUserAddRows="False"
+                  CanUserDeleteRows="False"
+                  CanUserResizeColumns="True"
+                  MouseDoubleClick="EmployeesDataGrid_MouseDoubleClick"
+                  MouseLeftButtonUp="EmployeesDataGrid_MouseLeftButtonUp"
+                  ColumnReordered="EmployeesDataGrid_ColumnReordered"
+                  ContextMenu="{StaticResource DataGridContextMenu}"
+                  Style="{StaticResource GlassDataGrid}">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Роль" Width="110"
+                                    Binding="{Binding Role, Converter={StaticResource RoleToStringConverter}}"
+                                    ElementStyle="{StaticResource WrappingCellText}"/>
+                <DataGridTextColumn Header="ФИО" Binding="{Binding FullName}" Width="160"
+                                    ElementStyle="{StaticResource WrappingCellText}"/>
+                <DataGridTextColumn Header="Должность" Binding="{Binding Position}" Width="130"
+                                    ElementStyle="{StaticResource WrappingCellText}"/>
+                <DataGridTextColumn Header="Организация" Binding="{Binding OrganizationName}" Width="120"
+                                    ElementStyle="{StaticResource WrappingCellText}"/>
+                <DataGridTextColumn Header="Приказ №" Binding="{Binding OrderNumber}" Width="70"
+                                    ElementStyle="{StaticResource WrappingCellText}"/>
+                <DataGridTextColumn Header="Дата приказа" Binding="{Binding OrderDate, StringFormat={}{0:dd.MM.yyyy}}" Width="90"
+                                    ElementStyle="{StaticResource WrappingCellText}"/>
+                <DataGridTextColumn Header="НРС №" Binding="{Binding NrsNumber}" Width="90"
+                                    ElementStyle="{StaticResource WrappingCellText}"/>
+                <DataGridTextColumn Header="Дата начала" Binding="{Binding WorkStartDate, StringFormat={}{0:dd.MM.yyyy}}" Width="90"
+                                    ElementStyle="{StaticResource WrappingCellText}"/>
+                <DataGridTextColumn Header="Дата окончания" Binding="{Binding WorkEndDate, StringFormat={}{0:dd.MM.yyyy}}" Width="100"
+                                    ElementStyle="{StaticResource WrappingCellText}"/>
+                <!-- Колонка файла приказа -->
+                <DataGridTemplateColumn Header="Файл" Width="60">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <Button Content="📎"
+                                    ToolTip="{Binding OrderFileName, Mode=OneWay}"
+                                    Command="{Binding DataContext.OpenOrderFileCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                    Visibility="{Binding OrderFileName, Mode=OneWay, Converter={StaticResource NullToBoolConverter}, ConverterParameter=Inverted}"
+                                    Padding="2"
+                                    BorderThickness="0"
+                                    Background="Transparent"
+                                    Cursor="Hand"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <!-- Модальное окно редактирования (Overlay) -->
+        <Border Grid.Row="0" Grid.RowSpan="3"
+                Background="#CC000000"
+                Visibility="{Binding IsEditing, Converter={StaticResource BoolToVisibility}}"
+                Panel.ZIndex="100">
+            <Border Background="#F0FFFFFF"
+                    BorderBrush="{DynamicResource GlassBorderBrush}"
+                    Width="620"
+                    MaxHeight="750"
+                    VerticalAlignment="Center"
+                    HorizontalAlignment="Center"
+                    Padding="25"
+                    CornerRadius="15"
+                    Margin="20"
+                    Effect="{StaticResource GlassShadow}">
+
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel>
+                        <!-- Заголовок с кнопкой закрытия -->
+                        <Grid Margin="0,0,0,20">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0"
+                                       Text="Сотрудник"
+                                       FontSize="20"
+                                       FontWeight="Bold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"
+                                       VerticalAlignment="Center"/>
+                            <Button Grid.Column="1"
+                                    Content="✕"
+                                    Command="{Binding CancelEditCommand}"
+                                    Width="32" Height="32"
+                                    FontSize="16"
+                                    HorizontalAlignment="Right"
+                                    VerticalAlignment="Top"
+                                    Background="Transparent"
+                                    BorderThickness="0"
+                                    Cursor="Hand"
+                                    ToolTip="Закрыть"/>
+                        </Grid>
+
+                        <TextBlock Text="Роль:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <ComboBox SelectedItem="{Binding EditingEmployee.Role}" Margin="0,0,0,12"
+                                  Style="{StaticResource GlassComboBox}"
+                                  ItemTemplate="{StaticResource RoleItemTemplate}">
+                            <models:RepresentativeType>SK_Zakazchika</models:RepresentativeType>
+                            <models:RepresentativeType>GenPodryadchik</models:RepresentativeType>
+                            <models:RepresentativeType>SK_GenPodryadchika</models:RepresentativeType>
+                            <models:RepresentativeType>Podryadchik</models:RepresentativeType>
+                            <models:RepresentativeType>AvtorskiyNadzor</models:RepresentativeType>
+                            <models:RepresentativeType>InoeLico</models:RepresentativeType>
+                        </ComboBox>
+
+                        <TextBlock Text="ФИО:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBox Text="{Binding EditingEmployee.FullName, UpdateSourceTrigger=PropertyChanged}"
+                                 Style="{StaticResource GlassTextBox}"
+                                 Margin="0,0,0,12" Padding="5"/>
+
+                        <TextBlock Text="Должность:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBox Text="{Binding EditingEmployee.Position, UpdateSourceTrigger=PropertyChanged}"
+                                 Style="{StaticResource GlassTextBox}"
+                                 Margin="0,0,0,12" Padding="5"/>
+
+                        <TextBlock Text="Организация:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBox Text="{Binding EditingEmployee.OrganizationName, UpdateSourceTrigger=PropertyChanged}"
+                                 Style="{StaticResource GlassTextBox}"
+                                 Margin="0,0,0,12" Padding="5"/>
+
+                        <!-- Приказ -->
+                        <Grid Margin="0,0,0,12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" Margin="0,0,5,0">
+                                <TextBlock Text="Приказ №:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                <TextBox Text="{Binding EditingEmployee.OrderNumber, UpdateSourceTrigger=PropertyChanged}"
+                                         Style="{StaticResource GlassTextBox}"
+                                         Padding="5"/>
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="1" Margin="5,0,0,0">
+                                <TextBlock Text="Дата приказа:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                <DatePicker SelectedDate="{Binding EditingEmployee.OrderDate}"
+                                            HorizontalAlignment="Stretch"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- НРС -->
+                        <TextBlock Text="НРС (Национальный реестр специалистов):" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <Grid Margin="0,0,0,12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" Margin="0,0,5,0">
+                                <TextBlock Text="Идентификационный номер:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                <TextBox Text="{Binding EditingEmployee.NrsNumber, UpdateSourceTrigger=PropertyChanged}"
+                                         Style="{StaticResource GlassTextBox}"
+                                         Padding="5"/>
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="1" Margin="5,0,0,0">
+                                <TextBlock Text="Дата НРС:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                <DatePicker SelectedDate="{Binding EditingEmployee.NrsDate}"
+                                            HorizontalAlignment="Stretch"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- Даты работы -->
+                        <TextBlock Text="Период работы:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <Grid Margin="0,0,0,12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" Margin="0,0,5,0">
+                                <TextBlock Text="Дата начала:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                <DatePicker SelectedDate="{Binding EditingEmployee.WorkStartDate}"
+                                            HorizontalAlignment="Stretch"/>
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="1" Margin="5,0,0,0">
+                                <TextBlock Text="Дата окончания:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                <DatePicker SelectedDate="{Binding EditingEmployee.WorkEndDate}"
+                                            HorizontalAlignment="Stretch"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- Организация в акте -->
+                        <CheckBox Content="Включить организацию в акт"
+                                  IsChecked="{Binding EditingEmployee.IncludeOrganizationInAct}"
+                                  FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBlock Text="Реквизиты организации:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBox Text="{Binding EditingEmployee.OrganizationRequisites, UpdateSourceTrigger=PropertyChanged}"
+                                 Style="{StaticResource GlassTextBox}"
+                                 Margin="0,0,0,12" Padding="5" AcceptsReturn="True" Height="60"
+                                 TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"/>
+
+                        <!-- ==================== ЗОНА ПРИКРЕПЛЕНИЯ ФАЙЛА ПРИКАЗА ==================== -->
+                        <TextBlock Text="📎 Файл приказа:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <Border x:Name="OrderDropZone"
+                                BorderBrush="#CCC" BorderThickness="2"
+                                Padding="15" Margin="0,0,0,12"
+                                CornerRadius="5"
+                                AllowDrop="True"
+                                DragOver="OrderDropZone_DragOver"
+                                Drop="OrderDropZone_Drop"
+                                Background="#FAFAFA">
+                            <StackPanel>
+                                <TextBlock Text="Перетащите файл сюда или нажмите кнопку:"
+                                           Foreground="#666" FontSize="12" Margin="0,0,0,8"/>
+                                <StackPanel Orientation="Horizontal">
+                                    <Button Content="📎 Прикрепить приказ"
+                                            Command="{Binding AttachOrderFileCommand}"
+                                            Style="{StaticResource GlassButton}"
+                                            Padding="10,5" Margin="0,0,10,0"/>
+                                    <Button Content="🗑️ Удалить"
+                                            Command="{Binding RemoveOrderFileCommand}"
+                                            Style="{StaticResource SecondaryGlassButton}"
+                                            Padding="10,5"
+                                            Visibility="{Binding HasTempOrderFile, Converter={StaticResource BoolToVisibility}}"/>
+                                </StackPanel>
+                                <!-- Временный файл (только выбран) -->
+                                <TextBlock Margin="0,8,0,0" FontSize="12" Foreground="Orange"
+                                           Visibility="{Binding HasTempOrderFile, Converter={StaticResource BoolToVisibility}}">
+                                    <Run Text="⏳ Выбран (будет сохранён): "/>
+                                    <Run Text="{Binding OrderFileDisplayName, Mode=OneWay}"/>
+                                </TextBlock>
+                                <!-- Сохранённый файл (уже в БД) -->
+                                <TextBlock Margin="0,8,0,0" FontSize="12" Foreground="Green"
+                                           Visibility="{Binding HasSavedOrderFile, Converter={StaticResource BoolToVisibility}}">
+                                    <Run Text="✅ Прикреплён: "/>
+                                    <Run Text="{Binding OrderFileDisplayName, Mode=OneWay}"/>
+                                </TextBlock>
+                            </StackPanel>
+                        </Border>
+
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+                            <Button Content="💾 Сохранить"
+                                    Command="{Binding SaveEmployeeCommand}"
+                                    Style="{StaticResource PrimaryGlassButton}"
+                                    Padding="15,8"
+                                    Margin="0,0,10,0"
+                                    IsDefault="True"/>
+                            <Button Content="❌ Отмена"
+                                    Command="{Binding CancelEditCommand}"
+                                    Style="{StaticResource SecondaryGlassButton}"
+                                    Padding="15,8"
+                                    IsCancel="True"/>
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+        </Border>
+    </Grid>
+</UserControl>
+
+using System;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Input;
+using AGenerator.Services;
+using AGenerator.ViewModels;
+
+namespace AGenerator.Views;
+
+/// <summary>
+/// Interaction logic for EmployeesView.xaml
+/// </summary>
+public partial class EmployeesView : UserControl
+{
+    private readonly DataGridColumnWidthService _columnWidthService;
+
+    public EmployeesView()
+    {
+        InitializeComponent();
+        _columnWidthService = new DataGridColumnWidthService();
+
+        // Восстанавливаем сохранённые ширины столбцов
+        EmployeesDataGrid.Loaded += EmployeesDataGrid_Loaded;
+        EmployeesDataGrid.ColumnReordered += EmployeesDataGrid_ColumnReordered;
+    }
+
+    private void EmployeesDataGrid_Loaded(object sender, RoutedEventArgs e)
+    {
+        // Восстанавливаем сохранённые ширины
+        _columnWidthService.RestoreColumnWidths(EmployeesDataGrid, "EmployeesDataGrid");
+
+        // Автоподбор ширины после загрузки данных (с задержкой)
+        Dispatcher.BeginInvoke(new Action(() =>
+        {
+            _columnWidthService.AutoFitColumns(EmployeesDataGrid, 300);
+        }), System.Windows.Threading.DispatcherPriority.ContextIdle);
+    }
+
+    private void EmployeesDataGrid_ColumnReordered(object sender, DataGridColumnEventArgs e)
+    {
+        _columnWidthService.SaveColumnWidths(EmployeesDataGrid, "EmployeesDataGrid");
+    }
+
+    private void EmployeesDataGrid_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        // Сохраняем ширины столбцов после изменения размера
+        _columnWidthService.SaveColumnWidths(EmployeesDataGrid, "EmployeesDataGrid");
+    }
+
+    private void EmployeesDataGrid_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+    {
+        if (DataContext is EmployeesViewModel vm)
+            vm.EditSelectedEmployeeCommand.Execute(null);
+    }
+
+    // ==================== DRAG-AND-DROP ДЛЯ ФАЙЛА ПРИКАЗА ====================
+
+    private void OrderDropZone_DragOver(object sender, DragEventArgs e)
+    {
+        if (e.Data.GetDataPresent(DataFormats.FileDrop))
+            e.Effects = DragDropEffects.Copy;
+        else
+            e.Effects = DragDropEffects.None;
+
+        e.Handled = true;
+    }
+
+    private void OrderDropZone_Drop(object sender, DragEventArgs e)
+    {
+        if (DataContext is not EmployeesViewModel vm) return;
+
+        if (e.Data.GetDataPresent(DataFormats.FileDrop))
+        {
+            var files = (string[])e.Data.GetData(DataFormats.FileDrop);
+            vm.HandleOrderFileDrop(files);
+        }
+    }
+}
+
+Код для файла MainWindow.xaml:
+<Window x:Class="AGenerator.Views.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="clr-namespace:AGenerator.ViewModels"
+        xmlns:views="clr-namespace:AGenerator.Views"
+        mc:Ignorable="d"
+        Title="{Binding WindowTitle}" Height="800" Width="1400"
+        WindowStartupLocation="CenterScreen"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent">
+
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
+
+        <!-- DataTemplates -->
+        <DataTemplate DataType="{x:Type vm:ActsViewModel}">
+            <views:ActsView/>
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:EmployeesViewModel}">
+            <views:EmployeesView/>
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:MaterialsViewModel}">
+            <views:MaterialsView/>
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:SchemasViewModel}">
+            <views:SchemasView/>
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:ProtocolsViewModel}">
+            <views:ProtocolsView/>
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:ProjectDocsViewModel}">
+            <views:ProjectDocsView/>
+        </DataTemplate>
+
+        <!-- Стили кнопок управления окном -->
+        <Style x:Key="WindowControlButton" TargetType="Button">
+            <Setter Property="Width" Value="46"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                CornerRadius="4">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#20000000"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Background" Value="#40000000"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="CloseWindowButton" TargetType="Button" BasedOn="{StaticResource WindowControlButton}">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                CornerRadius="4">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#E81123"/>
+                                <Setter Property="Foreground" Value="White"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Background" Value="#C50B1A"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <!-- Внешний контейнер с закругленными краями и тенью -->
+    <Border Background="Transparent" Margin="10">
+        <Border.Effect>
+            <DropShadowEffect Color="Black" Opacity="0.3" BlurRadius="25" ShadowDepth="0"/>
+        </Border.Effect>
+
+        <!-- Основной контейнер с закругленными краями -->
+        <Border Background="{DynamicResource MainGradient}" CornerRadius="12">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!-- ШАПКА ОКНА (перетаскиваемая) -->
+                <Border Grid.Row="0" Background="{DynamicResource GlassBrush}"
+                        BorderBrush="{DynamicResource GlassBorderBrush}"
+                        BorderThickness="0,0,0,1"
+                        CornerRadius="12,12,0,0"
+                        MouseLeftButtonDown="Window_MouseLeftButtonDown">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Логотип -->
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="20,12,0,12">
+                            <TextBlock Text="🏗️" FontSize="28" Margin="0,0,12,0"/>
+                            <StackPanel>
+                                <TextBlock Text="P-генератор" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                <TextBlock Text="Система генерации ИД" FontSize="11" Foreground="{DynamicResource TextPrimaryBrush}" Opacity="0.7"/>
+                            </StackPanel>
+                            <Button Content="⚙️"
+                                    Click="Settings_Click"
+                                    Width="36" Height="36"
+                                    Margin="16,0,0,0"
+                                    FontSize="18"
+                                    Background="Transparent"
+                                    BorderThickness="0"
+                                    Cursor="Hand"
+                                    ToolTip="Настройки"
+                                    VerticalAlignment="Center"/>
+                        </StackPanel>
+
+                        <!-- Текущий объект -->
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center"
+                                    Visibility="{Binding CurrentObject, Converter={StaticResource BoolToVisibility}}">
+                            <TextBlock Text="📋 " FontSize="14" VerticalAlignment="Center"/>
+                            <StackPanel>
+                                <TextBlock Text="{Binding CurrentObject.Name}" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                <TextBlock Text="{Binding CurrentObject.Address}" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <!-- Кнопки управления окном -->
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,8,0">
+                            <!-- Статус -->
+                            <TextBlock Text="{Binding StatusMessage}" FontSize="11"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"
+                                       VerticalAlignment="Center"
+                                       Margin="0,0,12,0"
+                                       Opacity="0.7"/>
+                            <!-- Свернуть -->
+                            <Button Content="─"
+                                    Style="{StaticResource WindowControlButton}"
+                                    Click="Minimize_Click"
+                                    ToolTip="Свернуть"/>
+                            <!-- Развернуть/Восстановить -->
+                            <Button x:Name="MaximizeRestoreBtn"
+                                    Content="☐"
+                                    Style="{StaticResource WindowControlButton}"
+                                    Click="MaximizeRestore_Click"
+                                    ToolTip="Развернуть"/>
+                            <!-- Закрыть -->
+                            <Button Content="✕"
+                                    Style="{StaticResource CloseWindowButton}"
+                                    Click="Close_Click"
+                                    ToolTip="Закрыть"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- ТЕЛО -->
+                <Grid Grid.Row="1" Margin="16">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Вкладки навигации (Glass) -->
+                    <Border Grid.Row="0" Background="{DynamicResource GlassBrush}" CornerRadius="10" Padding="8,4" Margin="0,0,0,12" Effect="{StaticResource GlassShadow}">
+                        <TabControl SelectedIndex="{Binding SelectedTabIndex}" Background="Transparent" BorderThickness="0">
+                            <TabControl.Resources>
+                                <Style TargetType="TabItem">
+                                    <Setter Property="Background" Value="Transparent"/>
+                                    <Setter Property="BorderThickness" Value="0"/>
+                                    <Setter Property="Padding" Value="14,8"/>
+                                    <Setter Property="FontSize" Value="13"/>
+                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                    <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+                                    <Setter Property="Cursor" Value="Hand"/>
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="TabItem">
+                                                <Border x:Name="Border" Background="{TemplateBinding Background}"
+                                                        CornerRadius="8" Padding="{TemplateBinding Padding}" Margin="2">
+                                                    <ContentPresenter ContentSource="Header" HorizontalAlignment="Center"/>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsSelected" Value="True">
+                                                        <Setter TargetName="Border" Property="Background" Value="#80FFFFFF"/>
+                                                        <Setter Property="Effect" Value="{StaticResource GlassShadow}"/>
+                                                    </Trigger>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="Border" Property="Background" Value="#60FFFFFF"/>
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
+                            </TabControl.Resources>
+                            <TabItem Header="📄 Акты"/>
+                            <TabItem Header="👥 Сотрудники"/>
+                            <TabItem Header="📦 Материалы"/>
+                            <TabItem Header="🗺️ Схемы"/>
+                            <TabItem Header="🧪 Протоколы и заключения"/>
+                            <TabItem Header="📐 Проекты"/>
+                        </TabControl>
+                    </Border>
+
+                    <!-- Рабочая область (Glass) -->
+                    <Border Grid.Row="1" Background="{DynamicResource GlassBrush}" CornerRadius="12" Padding="12" Effect="{StaticResource GlassShadow}">
+                        <ContentControl Content="{Binding CurrentView}"/>
+                    </Border>
+                </Grid>
+            </Grid>
+        </Border>
+    </Border>
+</Window>
+Код для файла MainWindow.xaml.cs:
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Input;
+
+namespace AGenerator.Views;
+
+public partial class MainWindow : Window
+{
+    public MainWindow()
+    {
+        InitializeComponent();
+    }
+
+    // Перетаскивание окна за шапку
+    private void Window_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ButtonState == MouseButtonState.Pressed)
+        {
+            this.DragMove();
+        }
+    }
+
+    // Свернуть окно
+    private void Minimize_Click(object sender, RoutedEventArgs e)
+    {
+        this.WindowState = WindowState.Minimized;
+    }
+
+    // Развернуть/Восстановить
+    private void MaximizeRestore_Click(object sender, RoutedEventArgs e)
+    {
+        if (this.WindowState == WindowState.Maximized)
+        {
+            this.WindowState = WindowState.Normal;
+            MaximizeRestoreBtn.Content = "☐";
+        }
+        else
+        {
+            this.WindowState = WindowState.Maximized;
+            MaximizeRestoreBtn.Content = "❐";
+        }
+    }
+
+    // Закрыть окно
+    private void Close_Click(object sender, RoutedEventArgs e)
+    {
+        this.Close();
+    }
+
+    private void Settings_Click(object sender, RoutedEventArgs e)
+    {
+        var settingsWindow = new Window
+        {
+            Title = "⚙️ Настройки",
+            Width = 520,
+            Height = 500,
+            MinWidth = 400,
+            MinHeight = 350,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Owner = this,
+            ResizeMode = ResizeMode.CanResize,
+            WindowStyle = WindowStyle.None,
+            AllowsTransparency = true,
+            Background = System.Windows.Media.Brushes.Transparent,
+            Content = CreateSettingsViewContent()
+        };
+        settingsWindow.ShowDialog();
+    }
+
+    /// <summary>
+    /// Создаёт содержимое окна настроек с современным стилем
+    /// </summary>
+    private System.Windows.Controls.Grid CreateSettingsViewContent()
+    {
+        var settingsView = new SettingsView();
+
+        // Внешний контейнер с тенью
+        var outerBorder = new System.Windows.Controls.Border
+        {
+            Background = System.Windows.Media.Brushes.Transparent,
+            Margin = new Thickness(10)
+        };
+        outerBorder.Effect = new System.Windows.Media.Effects.DropShadowEffect
+        {
+            Color = System.Windows.Media.Colors.Black,
+            Opacity = 0.3,
+            BlurRadius = 25,
+            ShadowDepth = 0
+        };
+
+        // Основной контейнер с закругленными краями
+        var mainBorder = new System.Windows.Controls.Border
+        {
+            Background = Application.Current.Resources["MainGradient"] as System.Windows.Media.Brush,
+            CornerRadius = new CornerRadius(12)
+        };
+
+        var grid = new System.Windows.Controls.Grid();
+        grid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = System.Windows.GridLength.Auto });
+        grid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = new System.Windows.GridLength(1, System.Windows.GridUnitType.Star) });
+
+        // Шапка (перетаскиваемая)
+        var headerBorder = new System.Windows.Controls.Border
+        {
+            Background = Application.Current.Resources["GlassBrush"] as System.Windows.Media.Brush,
+            BorderBrush = Application.Current.Resources["GlassBorderBrush"] as System.Windows.Media.Brush,
+            BorderThickness = new Thickness(0, 0, 0, 1),
+            CornerRadius = new CornerRadius(12, 12, 0, 0),
+            Padding = new Thickness(16, 10, 16, 10)
+        };
+        headerBorder.MouseLeftButtonDown += (s, e) =>
+        {
+            if (e.ButtonState == MouseButtonState.Pressed)
+            {
+                Window.GetWindow(headerBorder)?.DragMove();
+            }
+        };
+
+        var headerGrid = new System.Windows.Controls.Grid();
+        headerGrid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new System.Windows.GridLength(1, System.Windows.GridUnitType.Star) });
+        headerGrid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = System.Windows.GridLength.Auto });
+
+        // Заголовок
+        var titlePanel = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+        titlePanel.Children.Add(new TextBlock
+        {
+            Text = "⚙️",
+            FontSize = 20,
+            Margin = new Thickness(0, 0, 10, 0),
+            VerticalAlignment = VerticalAlignment.Center
+        });
+        titlePanel.Children.Add(new TextBlock
+        {
+            Text = "Настройки",
+            FontSize = 16,
+            FontWeight = FontWeights.Bold,
+            Foreground = Application.Current.Resources["TextPrimaryBrush"] as System.Windows.Media.Brush,
+            VerticalAlignment = VerticalAlignment.Center
+        });
+        System.Windows.Controls.Grid.SetColumn(titlePanel, 0);
+        headerGrid.Children.Add(titlePanel);
+
+        // Кнопки управления
+        var buttonsPanel = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+
+        // Свернуть
+        var minimizeBtn = new Button
+        {
+            Content = "─",
+            Width = 46,
+            Height = 32,
+            Background = System.Windows.Media.Brushes.Transparent,
+            BorderThickness = new Thickness(0),
+            Cursor = Cursors.Hand,
+            FontSize = 12,
+            Foreground = Application.Current.Resources["TextPrimaryBrush"] as System.Windows.Media.Brush,
+            ToolTip = "Свернуть"
+        };
+        minimizeBtn.Click += (s, e) =>
+        {
+            var window = Window.GetWindow(minimizeBtn);
+            if (window != null) window.WindowState = WindowState.Minimized;
+        };
+
+        // Закрыть
+        var closeBtn = new Button
+        {
+            Content = "✕",
+            Width = 46,
+            Height = 32,
+            Background = System.Windows.Media.Brushes.Transparent,
+            BorderThickness = new Thickness(0),
+            Cursor = Cursors.Hand,
+            FontSize = 12,
+            Foreground = Application.Current.Resources["TextPrimaryBrush"] as System.Windows.Media.Brush,
+            ToolTip = "Закрыть"
+        };
+        closeBtn.Click += (s, e) =>
+        {
+            var window = Window.GetWindow(closeBtn);
+            if (window != null) window.Close();
+        };
+
+        buttonsPanel.Children.Add(minimizeBtn);
+        buttonsPanel.Children.Add(closeBtn);
+        System.Windows.Controls.Grid.SetColumn(buttonsPanel, 1);
+        headerGrid.Children.Add(buttonsPanel);
+
+        headerBorder.Child = headerGrid;
+        System.Windows.Controls.Grid.SetRow(headerBorder, 0);
+        grid.Children.Add(headerBorder);
+
+        // Содержимое настроек
+        System.Windows.Controls.Grid.SetRow(settingsView, 1);
+        grid.Children.Add(settingsView);
+
+        mainBorder.Child = grid;
+        outerBorder.Child = mainBorder;
+
+        return new System.Windows.Controls.Grid { Children = { outerBorder } };
+    }
+}
+Код для файла MaterialsView.xaml:
+<UserControl x:Class="AGenerator.Views.MaterialsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:AGenerator.ViewModels"
+             xmlns:models="clr-namespace:AGenerator.Models"
+             xmlns:converters="clr-namespace:AGenerator.Converters"
+             mc:Ignorable="d"
+             d:DesignHeight="450" d:DesignWidth="800"
+             d:DataContext="{d:DesignInstance vm:MaterialsViewModel}">
+
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
+        <converters:NullToBoolConverter x:Key="NullToBoolConverter"/>
+
+        <!-- Контекстное меню -->
+        <ContextMenu x:Key="DataGridContextMenu">
+            <MenuItem Header="✏️ Редактировать"
+                      Command="{Binding PlacementTarget.DataContext.EditSelectedMaterialCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+            <MenuItem Header="📋 Копировать"
+                      Command="{Binding PlacementTarget.DataContext.CopyMaterialCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+            <Separator/>
+            <MenuItem Header="🗑️ Удалить"
+                      Command="{Binding PlacementTarget.DataContext.DeleteSelectedMaterialCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+            <Separator/>
+            <MenuItem Header="🔄 Обновить"
+                      Command="{Binding PlacementTarget.DataContext.RefreshAsyncCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+        </ContextMenu>
+    </UserControl.Resources>
+
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Тулбар -->
+        <Border Grid.Row="0" Background="{DynamicResource GlassBrush}" CornerRadius="12" Padding="15" Margin="0,0,0,10" Effect="{StaticResource GlassShadow}">
+            <StackPanel Orientation="Horizontal">
+                <Button Content="➕ Добавить" Command="{Binding AddNewMaterialCommand}" Style="{StaticResource PrimaryGlassButton}" Padding="10,5" Margin="0,0,5,0"/>
+                <Button Content="✏️ Изменить" Command="{Binding EditSelectedMaterialCommand}" Style="{StaticResource SecondaryGlassButton}" Padding="10,5" Margin="0,0,5,0"
+                        IsEnabled="{Binding SelectedMaterial, Converter={StaticResource NullToBoolConverter}}"/>
+                <Button Content="🗑️ Удалить" Command="{Binding DeleteSelectedMaterialCommand}" Style="{StaticResource SecondaryGlassButton}" Padding="10,5" Margin="0,0,5,0"
+                        IsEnabled="{Binding SelectedMaterial, Converter={StaticResource NullToBoolConverter}}"/>
+                <Button Content="🔄 Обновить" Command="{Binding RefreshAsyncCommand}" Style="{StaticResource GlassButton}" Padding="10,5"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Поиск -->
+        <TextBox Grid.Row="1" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                 Style="{StaticResource GlassTextBox}"
+                 Margin="0,0,0,10" Padding="5" ToolTip="Поиск по названию"/>
+
+        <!-- Таблица материалов -->
+        <DataGrid Grid.Row="2" x:Name="MaterialsDataGrid"
+                  ItemsSource="{Binding Materials}" SelectedItem="{Binding SelectedMaterial}"
+                  AutoGenerateColumns="False" IsReadOnly="True"
+                  CanUserAddRows="False" CanUserDeleteRows="False"
+                  GridLinesVisibility="All"
+                  MouseDoubleClick="MaterialsDataGrid_MouseDoubleClick"
+                  ContextMenu="{StaticResource DataGridContextMenu}"
+                  Style="{StaticResource GlassDataGrid}">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Категория" Width="100" Binding="{Binding Type}"/>
+                <DataGridTextColumn Header="Название" Binding="{Binding Name}" Width="180"/>
+                <DataGridTextColumn Header="Тип док." Width="140" Binding="{Binding DocumentTypeDisplay}"/>
+                <DataGridTextColumn Header="№ док." Width="80" Binding="{Binding CertificateNumber}"/>
+                <DataGridTextColumn Header="Дата док." Width="80" Binding="{Binding CertificateDateText}"/>
+                <DataGridTextColumn Header="Ед. изм." Width="60" Binding="{Binding Unit}"/>
+                <DataGridTextColumn Header="Объём" Width="60" Binding="{Binding Quantity, StringFormat={}{0:N2}}"/>
+                <DataGridTextColumn Header="Производитель" Width="120" Binding="{Binding Manufacturer}"/>
+                <DataGridTextColumn Header="Поставщик" Width="120" Binding="{Binding Supplier}"/>
+                <DataGridTemplateColumn Header="Файл" Width="60">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <Button Content="📎"
+                                    ToolTip="{Binding CertificateFileName, Mode=OneWay}"
+                                    Command="{Binding DataContext.OpenCertificateFileCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                    Visibility="{Binding CertificateFileName, Mode=OneWay, Converter={StaticResource NullToBoolConverter}, ConverterParameter=Inverted}"
+                                    Padding="2" BorderThickness="0" Background="Transparent" Cursor="Hand"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <!-- Модальное окно редактирования -->
+        <Border Grid.Row="0" Grid.RowSpan="3" Background="#CC000000"
+                Visibility="{Binding IsEditing, Converter={StaticResource BoolToVisibility}}" Panel.ZIndex="100">
+            <Border Background="#F0FFFFFF" Width="620" MaxHeight="750"
+                    VerticalAlignment="Center" HorizontalAlignment="Center"
+                    Padding="25" CornerRadius="15" Margin="20"
+                    BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="1"
+                    Effect="{StaticResource GlassShadow}">
+
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel>
+                        <Grid Margin="0,0,0,20">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Материал" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                            <Button Grid.Column="1" Content="✕" Command="{Binding CancelEditCommand}"
+                                    Width="32" Height="32" FontSize="16" HorizontalAlignment="Right" VerticalAlignment="Top"
+                                    Background="Transparent" BorderThickness="0" Cursor="Hand" ToolTip="Закрыть"/>
+                        </Grid>
+
+                        <TextBlock Text="Название:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBox Text="{Binding EditingMaterial.Name, UpdateSourceTrigger=PropertyChanged}"
+                                 Style="{StaticResource GlassTextBox}"
+                                 Margin="0,0,0,12" Padding="5"/>
+
+                        <TextBlock Text="Категория (тип):" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBox Text="{Binding EditingMaterial.Type, UpdateSourceTrigger=PropertyChanged}"
+                                 Style="{StaticResource GlassTextBox}"
+                                 Margin="0,0,0,12" Padding="5"/>
+
+                        <TextBlock Text="Тип документа:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <ComboBox SelectedItem="{Binding EditingMaterial.DocumentType}" Margin="0,0,0,12"
+                                  Style="{StaticResource GlassComboBox}">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock>
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding}" Value="{x:Static models:MaterialDocType.DeclarationOfConformity}">
+                                                        <Setter Property="Text" Value="Декларация о соответствии"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding}" Value="{x:Static models:MaterialDocType.QualityDocument}">
+                                                        <Setter Property="Text" Value="Документ о качестве"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding}" Value="{x:Static models:MaterialDocType.RefusalLetter}">
+                                                        <Setter Property="Text" Value="Отказное письмо"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding}" Value="{x:Static models:MaterialDocType.Passport}">
+                                                        <Setter Property="Text" Value="Паспорт"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding}" Value="{x:Static models:MaterialDocType.QualityPassport}">
+                                                        <Setter Property="Text" Value="Паспорт качества"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding}" Value="{x:Static models:MaterialDocType.SanitaryEpidemiologicalConclusion}">
+                                                        <Setter Property="Text" Value="Сан.-эпид. заключение"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding}" Value="{x:Static models:MaterialDocType.Certificate}">
+                                                        <Setter Property="Text" Value="Свидетельство"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding}" Value="{x:Static models:MaterialDocType.StateRegistrationCertificate}">
+                                                        <Setter Property="Text" Value="Свидетельство о гос.регистрации"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding}" Value="{x:Static models:MaterialDocType.CertificateOfConformity}">
+                                                        <Setter Property="Text" Value="Сертификат соответствия"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding}" Value="{x:Static models:MaterialDocType.TechnicalPassport}">
+                                                        <Setter Property="Text" Value="Технический паспорт"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                            <models:MaterialDocType>DeclarationOfConformity</models:MaterialDocType>
+                            <models:MaterialDocType>QualityDocument</models:MaterialDocType>
+                            <models:MaterialDocType>RefusalLetter</models:MaterialDocType>
+                            <models:MaterialDocType>Passport</models:MaterialDocType>
+                            <models:MaterialDocType>QualityPassport</models:MaterialDocType>
+                            <models:MaterialDocType>SanitaryEpidemiologicalConclusion</models:MaterialDocType>
+                            <models:MaterialDocType>Certificate</models:MaterialDocType>
+                            <models:MaterialDocType>StateRegistrationCertificate</models:MaterialDocType>
+                            <models:MaterialDocType>CertificateOfConformity</models:MaterialDocType>
+                            <models:MaterialDocType>TechnicalPassport</models:MaterialDocType>
+                        </ComboBox>
+
+                        <Grid Margin="0,0,0,12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Margin="0,0,5,0">
+                                <TextBlock Text="Ед. измерения:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                <TextBox Text="{Binding EditingMaterial.Unit, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource GlassTextBox}" Padding="5"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Margin="5,0,0,0">
+                                <TextBlock Text="Объём:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                <TextBox Text="{Binding EditingMaterial.Quantity, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource GlassTextBox}" Padding="5"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <TextBlock Text="ГОСТ №:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBox Text="{Binding EditingMaterial.GostNumber, UpdateSourceTrigger=PropertyChanged}"
+                                 Style="{StaticResource GlassTextBox}"
+                                 Margin="0,0,0,12" Padding="5"/>
+
+                        <!-- № документа и дата в одной строке -->
+                        <Grid Margin="0,0,0,12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="100"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="№ документа:" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"
+                                       VerticalAlignment="Center" Margin="0,0,5,0"/>
+                            <TextBox Grid.Column="1" Text="{Binding EditingMaterial.CertificateNumber, UpdateSourceTrigger=PropertyChanged}"
+                                     Style="{StaticResource GlassTextBox}"
+                                     Padding="5" Margin="0,0,10,0"/>
+                            <TextBlock Grid.Column="2" Text="Дата:" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"
+                                       VerticalAlignment="Center" Margin="0,0,5,0"/>
+                            <TextBox Grid.Column="3" x:Name="CertDateTextBox"
+                                     Text="{Binding EditingMaterial.CertificateDateText, UpdateSourceTrigger=PropertyChanged}"
+                                     Style="{StaticResource GlassTextBox}"
+                                     Padding="5" Width="100" Margin="0,0,5,0"
+                                     ToolTip="Введите дату: 13.08.2015, 08.2015 или 2015"/>
+                            <Button Grid.Column="4" x:Name="BtnPickDate" Content="📅" Padding="6,4"
+                                    Style="{StaticResource GlassButton}"
+                                    Click="BtnPickDate_Click" ToolTip="Выбрать дату"/>
+                            <!-- Popup с календарём -->
+                            <Popup x:Name="CalendarPopup"
+                                   PlacementTarget="{Binding ElementName=BtnPickDate}"
+                                   Placement="Bottom" StaysOpen="False"
+                                   AllowsTransparency="True" PopupAnimation="Fade">
+                                <Border Background="White" BorderBrush="#CCC" BorderThickness="1" Padding="5">
+                                    <Calendar x:Name="CertCalendar" SelectedDatesChanged="CertCalendar_SelectedDatesChanged"/>
+                                </Border>
+                            </Popup>
+                        </Grid>
+
+                        <TextBlock Text="Производитель:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBox Text="{Binding EditingMaterial.Manufacturer, UpdateSourceTrigger=PropertyChanged}"
+                                 Style="{StaticResource GlassTextBox}"
+                                 Margin="0,0,0,12" Padding="5"/>
+
+                        <TextBlock Text="Поставщик:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBox Text="{Binding EditingMaterial.Supplier, UpdateSourceTrigger=PropertyChanged}"
+                                 Style="{StaticResource GlassTextBox}"
+                                 Margin="0,0,0,12" Padding="5"/>
+
+                        <TextBlock Text="Дата доставки:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <DatePicker SelectedDate="{Binding EditingMaterial.DeliveryDate}"
+                                    HorizontalAlignment="Stretch" Margin="0,0,0,15"/>
+
+                        <!-- Зона прикрепления файла -->
+                        <TextBlock Text="📎 Файл сертификата:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <Border x:Name="CertificateDropZone" BorderBrush="#CCC" BorderThickness="2"
+                                Padding="15" Margin="0,0,0,12" CornerRadius="5"
+                                AllowDrop="True" DragOver="CertificateDropZone_DragOver"
+                                Drop="CertificateDropZone_Drop" Background="#FAFAFA">
+                            <StackPanel>
+                                <TextBlock Text="Перетащите файл сюда или нажмите кнопку:"
+                                           Foreground="#666" FontSize="12" Margin="0,0,0,8"/>
+                                <StackPanel Orientation="Horizontal">
+                                    <Button Content="📎 Прикрепить сертификат" Command="{Binding AttachCertificateFileCommand}"
+                                            Style="{StaticResource GlassButton}"
+                                            Padding="10,5" Margin="0,0,10,0"/>
+                                    <Button Content="🗑️ Удалить" Command="{Binding RemoveCertificateFileCommand}"
+                                            Style="{StaticResource SecondaryGlassButton}"
+                                            Padding="10,5" Visibility="{Binding HasTempCertFile, Converter={StaticResource BoolToVisibility}}"/>
+                                </StackPanel>
+                                <TextBlock Margin="0,8,0,0" FontSize="12" Foreground="Orange"
+                                           Visibility="{Binding HasTempCertFile, Converter={StaticResource BoolToVisibility}}">
+                                    <Run Text="⏳ Выбран (будет сохранён): "/>
+                                    <Run Text="{Binding CertFileDisplayName, Mode=OneWay}"/>
+                                </TextBlock>
+                                <TextBlock Margin="0,8,0,0" FontSize="12" Foreground="Green"
+                                           Visibility="{Binding HasSavedCertFile, Converter={StaticResource BoolToVisibility}}">
+                                    <Run Text="✅ Прикреплён: "/>
+                                    <Run Text="{Binding CertFileDisplayName, Mode=OneWay}"/>
+                                </TextBlock>
+                            </StackPanel>
+                        </Border>
+
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+                            <Button Content="💾 Сохранить" Command="{Binding SaveMaterialCommand}"
+                                    Style="{StaticResource PrimaryGlassButton}"
+                                    Padding="15,8" Margin="0,0,10,0" IsDefault="True"/>
+                            <Button Content="❌ Отмена" Command="{Binding CancelEditCommand}"
+                                    Style="{StaticResource SecondaryGlassButton}"
+                                    Padding="15,8" IsCancel="True"/>
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+        </Border>
+    </Grid>
+</UserControl>
+Код для файла MaterialsView.xaml.cs:
+using System;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
+using System.Windows.Input;
+using AGenerator.ViewModels;
+
+namespace AGenerator.Views;
+
+public partial class MaterialsView : UserControl
+{
+    public MaterialsView()
+    {
+        InitializeComponent();
+    }
+
+    private void MaterialsDataGrid_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+    {
+        if (DataContext is MaterialsViewModel vm)
+            vm.EditSelectedMaterialCommand.Execute(null);
+    }
+
+    private void BtnPickDate_Click(object sender, RoutedEventArgs e)
+    {
+        CalendarPopup.IsOpen = true;
+    }
+
+    private void CertCalendar_SelectedDatesChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (CertCalendar.SelectedDate.HasValue)
+        {
+            var dateStr = CertCalendar.SelectedDate.Value.ToString("dd.MM.yyyy");
+
+            // Обновляем ViewModel напрямую
+            if (DataContext is MaterialsViewModel vm)
+            {
+                vm.EditingMaterial.CertificateDateText = dateStr;
+            }
+
+            // Обновляем текст в TextBox
+            CertDateTextBox.Text = dateStr;
+            // Обновляем binding source
+            CertDateTextBox.GetBindingExpression(TextBox.TextProperty)?.UpdateSource();
+
+            CalendarPopup.IsOpen = false;
+        }
+    }
+
+    private void CertificateDropZone_DragOver(object sender, DragEventArgs e)
+    {
+        e.Effects = e.Data.GetDataPresent(DataFormats.FileDrop) ? DragDropEffects.Copy : DragDropEffects.None;
+        e.Handled = true;
+    }
+
+    private void CertificateDropZone_Drop(object sender, DragEventArgs e)
+    {
+        if (DataContext is not MaterialsViewModel vm) return;
+        if (e.Data.GetDataPresent(DataFormats.FileDrop))
+        {
+            var files = (string[])e.Data.GetData(DataFormats.FileDrop);
+            vm.HandleCertificateFileDrop(files);
+        }
+    }
+}
+Код для файла MultiSelectWindow.xaml:
+<Window x:Class="AGenerator.Views.MultiSelectWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="{Binding WindowTitle}" Height="500" Width="850"
+        WindowStartupLocation="CenterOwner"
+        MinHeight="400" MinWidth="600">
+
+    <Window.Resources>
+        <!-- Стили кнопок навигации -->
+        <Style x:Key="NavButton" TargetType="Button">
+            <Setter Property="Width" Value="40"/>
+            <Setter Property="Height" Value="30"/>
+            <Setter Property="Margin" Value="0,3"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="14"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="15">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Поиск -->
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
+            <TextBlock Text="🔍" VerticalAlignment="Center" Margin="0,0,5,0"/>
+            <TextBox Width="300" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" 
+                     ToolTip="Поиск по названию"/>
+        </StackPanel>
+
+        <!-- Основная область: два списка + кнопки -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Левый список: доступные элементы -->
+            <GroupBox Grid.Column="0" Header="Доступные" Margin="0,0,10,0">
+                <ListBox x:Name="AvailableListBox"
+                         ItemsSource="{Binding AvailableItems}"
+                         SelectionMode="Extended"
+                         Padding="5"/>
+            </GroupBox>
+
+            <!-- Кнопки навигации -->
+            <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="10,0">
+                <Button Content="▶" Style="{StaticResource NavButton}" 
+                        Command="{Binding AddSelectedCommand}" 
+                        CommandParameter="{Binding SelectedItems, ElementName=AvailableListBox}"
+                        ToolTip="Добавить выбранные"/>
+                <Button Content="◀" Style="{StaticResource NavButton}" 
+                        Command="{Binding RemoveSelectedCommand}" 
+                        CommandParameter="{Binding SelectedItems, ElementName=SelectedListBox}"
+                        ToolTip="Убрать выбранные"/>
+                <Separator Margin="0,10"/>
+                <Button Content="▶▶" Style="{StaticResource NavButton}" 
+                        Command="{Binding AddAllCommand}" 
+                        ToolTip="Добавить все"/>
+                <Button Content="◀◀" Style="{StaticResource NavButton}" 
+                        Command="{Binding RemoveAllCommand}" 
+                        ToolTip="Убрать все"/>
+            </StackPanel>
+
+            <!-- Правый список: выбранные элементы -->
+            <GroupBox Grid.Column="2" Header="Выбранные" Margin="10,0,0,0">
+                <ListBox x:Name="SelectedListBox"
+                         ItemsSource="{Binding SelectedItems}"
+                         SelectionMode="Extended"
+                         Background="#F0FFF0"
+                         Padding="5"/>
+            </GroupBox>
+        </Grid>
+
+        <!-- Кнопки ОК/Отмена -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,15,0,0">
+            <Button Content="✅ OK" IsDefault="True" Click="Ok_Click" 
+                    Padding="20,8" FontSize="13" Margin="0,0,10,0"/>
+            <Button Content="❌ Отмена" IsCancel="True" Click="Cancel_Click" 
+                    Padding="20,8" FontSize="13"/>
+        </StackPanel>
+    </Grid>
+</Window>
+Код для файла ObjectSelectionWindow.xaml:
+<Window x:Class="AGenerator.Views.ObjectSelectionWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:AGenerator.Views"
+        mc:Ignorable="d"
+        Title="Выбор объекта строительства" Height="500" Width="650"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent">
+
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+        <local:InverseBooleanToVisibilityConverter x:Key="InverseBoolToVis"/>
+
+        <!-- Стили кнопок управления окном -->
+        <Style x:Key="WindowControlButton" TargetType="Button">
+            <Setter Property="Width" Value="46"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="4">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#20000000"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Background" Value="#40000000"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="CloseWindowButton" TargetType="Button" BasedOn="{StaticResource WindowControlButton}">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="4">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#E81123"/>
+                                <Setter Property="Foreground" Value="White"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Background" Value="#C50B1A"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <!-- Внешний контейнер с тенью -->
+    <Border Background="Transparent" Margin="10">
+        <Border.Effect>
+            <DropShadowEffect Color="Black" Opacity="0.3" BlurRadius="25" ShadowDepth="0"/>
+        </Border.Effect>
+
+        <!-- Основной контейнер с закругленными краями -->
+        <Border Background="{DynamicResource MainGradient}" CornerRadius="12">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- ШАПКА (перетаскиваемая) -->
+                <Border Grid.Row="0" Background="{DynamicResource GlassBrush}"
+                        BorderBrush="{DynamicResource GlassBorderBrush}"
+                        BorderThickness="0,0,0,1"
+                        CornerRadius="12,12,0,0"
+                        MouseLeftButtonDown="Window_MouseLeftButtonDown">
+                    <Grid Margin="16,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Заголовок -->
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="🏗️" FontSize="28" Margin="0,0,12,0"/>
+                            <StackPanel>
+                                <TextBlock Text="Выберите объект" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                <TextBlock Text="или создайте новый" FontSize="11" Foreground="{DynamicResource TextPrimaryBrush}" Opacity="0.7"/>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <!-- Кнопки управления окном -->
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button Content="─" Style="{StaticResource WindowControlButton}"
+                                    Click="Minimize_Click" ToolTip="Свернуть"/>
+                            <Button Content="✕" Style="{StaticResource CloseWindowButton}"
+                                    Click="Close_Click" ToolTip="Закрыть"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- Список объектов -->
+                <Border Grid.Row="1" Background="#50FFFFFF" CornerRadius="0" Padding="20,16"
+                        Visibility="{Binding IsCreatingNew, Converter={StaticResource InverseBoolToVis}}">
+                    <ListBox ItemsSource="{Binding Objects}"
+                             SelectedItem="{Binding SelectedObject}"
+                             Background="Transparent" BorderThickness="0"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="#60FFFFFF" CornerRadius="8" Padding="12,10" Margin="0,3">
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="15" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                        <TextBlock Text="{Binding Address}" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="12" Margin="0,3,0,0" Opacity="0.7"/>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                        <ListBox.ItemContainerStyle>
+                            <Style TargetType="ListBoxItem">
+                                <Setter Property="Background" Value="Transparent"/>
+                                <Setter Property="BorderThickness" Value="0"/>
+                                <Setter Property="Padding" Value="0"/>
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="ListBoxItem">
+                                            <Border Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+                                                <ContentPresenter/>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsSelected" Value="True">
+                                                    <Setter Property="Background" Value="#80FFFFFF"/>
+                                                </Trigger>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter Property="Background" Value="#60FFFFFF"/>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </ListBox.ItemContainerStyle>
+                    </ListBox>
+                </Border>
+
+                <!-- Форма создания нового -->
+                <Border Grid.Row="1" Background="#60FFFFFF" Padding="20"
+                        Visibility="{Binding IsCreatingNew, Converter={StaticResource BoolToVis}}">
+                    <StackPanel>
+                        <TextBlock Text="Новый объект" FontWeight="Bold" FontSize="18" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,15"/>
+                        <TextBlock Text="Название:" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,5"/>
+                        <TextBox Text="{Binding NewObjectName, UpdateSourceTrigger=PropertyChanged}"
+                                 Style="{StaticResource GlassTextBox}" Margin="0,0,0,15"/>
+                        <TextBlock Text="Адрес (опционально):" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,5"/>
+                        <TextBox Text="{Binding NewObjectAddress, UpdateSourceTrigger=PropertyChanged}"
+                                 Style="{StaticResource GlassTextBox}" Margin="0,0,0,20"/>
+
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                            <Button Content="💾 Сохранить" Command="{Binding SaveNewObjectCommand}"
+                                    Style="{StaticResource PrimaryGlassButton}" Margin="0,0,10,0"/>
+                            <Button Content="❌ Отмена" Command="{Binding CancelCreateNewCommand}"
+                                    Style="{StaticResource SecondaryGlassButton}"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Кнопки управления -->
+                <Border Grid.Row="2" Background="{DynamicResource GlassBrush}"
+                        BorderBrush="{DynamicResource GlassBorderBrush}"
+                        BorderThickness="0,1,0,0"
+                        CornerRadius="0,0,12,12"
+                        Padding="16,12">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button Content="➕ Новый объект" Command="{Binding StartCreateNewCommand}"
+                                Style="{StaticResource SecondaryGlassButton}" Margin="0,0,10,0"
+                                Visibility="{Binding IsCreatingNew, Converter={StaticResource InverseBoolToVis}}"/>
+                        <Button Content="▶️ Открыть" Command="{Binding SelectObjectCommand}"
+                                Style="{StaticResource PrimaryGlassButton}" IsDefault="True"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Border>
+    </Border>
+</Window>
+Код для файла ObjectSelectionWindow.xaml.cs:
+using System.Windows;
+using System.Windows.Input;
+
+namespace AGenerator.Views
+{
+    public partial class ObjectSelectionWindow : Window
+    {
+        public ObjectSelectionWindow()
+        {
+            InitializeComponent();
+        }
+
+        // Перетаскивание окна за шапку
+        private void Window_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (e.ButtonState == MouseButtonState.Pressed)
+            {
+                this.DragMove();
+            }
+        }
+
+        // Свернуть окно
+        private void Minimize_Click(object sender, RoutedEventArgs e)
+        {
+            this.WindowState = WindowState.Minimized;
+        }
+
+        // Закрыть окно
+        private void Close_Click(object sender, RoutedEventArgs e)
+        {
+            this.Close();
+        }
+    }
+
+    /// <summary>
+    /// Конвертер: true -> Collapsed, false -> Visible (инверсия BooleanToVisibility)
+    /// </summary>
+    public class InverseBooleanToVisibilityConverter : System.Windows.Data.IValueConverter
+    {
+        public object Convert(object value, System.Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            if (value is bool boolValue)
+            {
+                return boolValue ? Visibility.Collapsed : Visibility.Visible;
+            }
+            return Visibility.Visible;
+        }
+
+        public object ConvertBack(object value, System.Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            if (value is Visibility visibility)
+            {
+                return visibility != Visibility.Visible;
+            }
+            return false;
+        }
+    }
+}
+Код для файла ProjectDocsView.xaml:
+<UserControl x:Class="AGenerator.Views.ProjectDocsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:AGenerator.ViewModels"
+             xmlns:converters="clr-namespace:AGenerator.Converters"
+             mc:Ignorable="d"
+             d:DesignHeight="450" d:DesignWidth="800"
+             d:DataContext="{d:DesignInstance vm:ProjectDocsViewModel}">
+
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
+        <converters:NullToBoolConverter x:Key="NullToBoolConverter"/>
+    </UserControl.Resources>
+
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Тулбар -->
+        <Border Grid.Row="0" Background="{DynamicResource GlassBrush}" CornerRadius="12" Padding="15" Margin="0,0,0,10" Effect="{StaticResource GlassShadow}">
+            <StackPanel Orientation="Horizontal">
+                <Button Content="➕ Добавить"
+                        Command="{Binding AddNewProjectDocCommand}"
+                        Style="{StaticResource PrimaryGlassButton}"
+                        Padding="10,5" Margin="0,0,5,0"/>
+                <Button Content="✏️ Изменить"
+                        Command="{Binding EditSelectedProjectDocCommand}"
+                        Style="{StaticResource SecondaryGlassButton}"
+                        Padding="10,5" Margin="0,0,5,0"
+                        IsEnabled="{Binding SelectedProjectDoc, Converter={StaticResource NullToBoolConverter}}"/>
+                <Button Content="🗑️ Удалить"
+                        Command="{Binding DeleteSelectedProjectDocCommand}"
+                        Style="{StaticResource SecondaryGlassButton}"
+                        Padding="10,5" Margin="0,0,5,0"
+                        IsEnabled="{Binding SelectedProjectDoc, Converter={StaticResource NullToBoolConverter}}"/>
+                <Button Content="🔄 Обновить"
+                        Command="{Binding RefreshAsyncCommand}"
+                        Style="{StaticResource GlassButton}"
+                        Padding="10,5"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Поиск -->
+        <TextBox Grid.Row="1"
+                 Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                 Style="{StaticResource GlassTextBox}"
+                 Margin="0,0,0,10"
+                 Padding="5"
+                 ToolTip="Поиск по шифру или названию"/>
+
+        <!-- Таблица проектной документации -->
+        <DataGrid Grid.Row="2"
+                  x:Name="ProjectDocsDataGrid"
+                  ItemsSource="{Binding ProjectDocs}"
+                  SelectedItem="{Binding SelectedProjectDoc}"
+                  AutoGenerateColumns="False"
+                  IsReadOnly="True"
+                  CanUserAddRows="False"
+                  CanUserDeleteRows="False"
+                  GridLinesVisibility="All"
+                  SelectionMode="Single"
+                  MouseDoubleClick="ProjectDocsDataGrid_MouseDoubleClick"
+                  Style="{StaticResource GlassDataGrid}">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Шифр" Width="150" Binding="{Binding Code}"/>
+                <DataGridTextColumn Header="Название раздела" Binding="{Binding Name}" Width="250"/>
+                <DataGridTextColumn Header="Листы" Width="120" Binding="{Binding Sheets}"/>
+                <DataGridTextColumn Header="Организация" Width="180" Binding="{Binding Organization}"/>
+                <DataGridTextColumn Header="ГИП" Width="150" Binding="{Binding GIP}"/>
+                <!-- Колонка файла проекта -->
+                <DataGridTemplateColumn Header="Файл" Width="80">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <Button Content="📎"
+                                    ToolTip="{Binding FileName, Mode=OneWay}"
+                                    Command="{Binding DataContext.OpenProjectFileCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                    Visibility="{Binding FileName, Mode=OneWay, Converter={StaticResource NullToBoolConverter}, ConverterParameter=Inverted}"
+                                    Padding="2"
+                                    BorderThickness="0"
+                                    Background="Transparent"
+                                    Cursor="Hand"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <!-- Модальное окно редактирования (Overlay) -->
+        <Border Grid.Row="0" Grid.RowSpan="3"
+                Background="#CC000000"
+                Visibility="{Binding IsEditing, Converter={StaticResource BoolToVisibility}}"
+                Panel.ZIndex="100">
+            <Border Background="#F0FFFFFF"
+                    Width="580"
+                    MaxHeight="650"
+                    VerticalAlignment="Center"
+                    HorizontalAlignment="Center"
+                    Padding="25"
+                    CornerRadius="15"
+                    Margin="20"
+                    BorderThickness="1"
+                    BorderBrush="{DynamicResource GlassBorderBrush}"
+                    Effect="{StaticResource GlassShadow}">
+
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel>
+                        <!-- Заголовок с кнопкой закрытия -->
+                        <Grid Margin="0,0,0,20">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0"
+                                       Text="Проектная документация"
+                                       FontSize="20"
+                                       FontWeight="Bold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"
+                                       VerticalAlignment="Center"/>
+                            <Button Grid.Column="1"
+                                    Content="✕"
+                                    Command="{Binding CancelEditCommand}"
+                                    Width="32" Height="32"
+                                    FontSize="16"
+                                    HorizontalAlignment="Right"
+                                    VerticalAlignment="Top"
+                                    Background="Transparent"
+                                    BorderThickness="0"
+                                    Cursor="Hand"
+                                    ToolTip="Закрыть"/>
+                        </Grid>
+
+                        <TextBlock Text="Шифр раздела:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBox Text="{Binding EditingProjectDoc.Code, UpdateSourceTrigger=PropertyChanged}"
+                                 Style="{StaticResource GlassTextBox}"
+                                 Margin="0,0,0,12" Padding="5"/>
+
+                        <TextBlock Text="Название раздела:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBox Text="{Binding EditingProjectDoc.Name, UpdateSourceTrigger=PropertyChanged}"
+                                 Style="{StaticResource GlassTextBox}"
+                                 Margin="0,0,0,12" Padding="5"/>
+
+                        <TextBlock Text="Номера листов:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBox Text="{Binding EditingProjectDoc.Sheets, UpdateSourceTrigger=PropertyChanged}"
+                                 Style="{StaticResource GlassTextBox}"
+                                 Margin="0,0,0,12" Padding="5"
+                                 ToolTip="Например: л.4, 5, 7"/>
+
+                        <TextBlock Text="Проектная организация:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBox Text="{Binding EditingProjectDoc.Organization, UpdateSourceTrigger=PropertyChanged}"
+                                 Style="{StaticResource GlassTextBox}"
+                                 Margin="0,0,0,12" Padding="5"/>
+
+                        <TextBlock Text="ГИП (Главный инженер проекта):" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBox Text="{Binding EditingProjectDoc.GIP, UpdateSourceTrigger=PropertyChanged}"
+                                 Style="{StaticResource GlassTextBox}"
+                                 Margin="0,0,0,15" Padding="5"/>
+
+                        <!-- ==================== ЗОНА ПРИКРЕПЛЕНИЯ ФАЙЛА ПРОЕКТА ==================== -->
+                        <TextBlock Text="📎 Файл проекта:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <Border x:Name="ProjectFileDropZone"
+                                BorderBrush="#CCC" BorderThickness="2"
+                                Padding="15" Margin="0,0,0,12"
+                                CornerRadius="5"
+                                AllowDrop="True"
+                                DragOver="ProjectFileDropZone_DragOver"
+                                Drop="ProjectFileDropZone_Drop"
+                                Background="#FAFAFA">
+                            <StackPanel>
+                                <TextBlock Text="Перетащите файл сюда или нажмите кнопку:"
+                                           Foreground="#666" FontSize="12" Margin="0,0,0,8"/>
+                                <StackPanel Orientation="Horizontal">
+                                    <Button Content="📎 Прикрепить файл"
+                                            Command="{Binding AttachProjectFileCommand}"
+                                            Style="{StaticResource GlassButton}"
+                                            Padding="10,5" Margin="0,0,10,0"/>
+                                    <Button Content="🗑️ Удалить"
+                                            Command="{Binding RemoveProjectFileCommand}"
+                                            Style="{StaticResource SecondaryGlassButton}"
+                                            Padding="10,5"
+                                            Visibility="{Binding HasProjectFile, Converter={StaticResource BoolToVisibility}}"/>
+                                </StackPanel>
+                                <TextBlock Margin="0,8,0,0" FontSize="12" Foreground="Green"
+                                           Visibility="{Binding HasProjectFile, Converter={StaticResource BoolToVisibility}}">
+                                    <Run Text="✅ Прикреплён: "/>
+                                    <Run Text="{Binding EditingProjectDoc.FileName, Mode=OneWay}"/>
+                                </TextBlock>
+                            </StackPanel>
+                        </Border>
+
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+                            <Button Content="💾 Сохранить"
+                                    Command="{Binding SaveProjectDocCommand}"
+                                    Style="{StaticResource PrimaryGlassButton}"
+                                    Padding="15,8"
+                                    Margin="0,0,10,0"
+                                    IsDefault="True"/>
+                            <Button Content="❌ Отмена"
+                                    Command="{Binding CancelEditCommand}"
+                                    Style="{StaticResource SecondaryGlassButton}"
+                                    Padding="15,8"
+                                    IsCancel="True"/>
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+        </Border>
+    </Grid>
+</UserControl>
+Код для файла ProjectDocsView.xaml.cs:
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Input;
+using AGenerator.ViewModels;
+
+namespace AGenerator.Views;
+
+public partial class ProjectDocsView : UserControl
+{
+    public ProjectDocsView()
+    {
+        InitializeComponent();
+    }
+
+    private void ProjectDocsDataGrid_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+    {
+        if (DataContext is ProjectDocsViewModel vm)
+            vm.EditSelectedProjectDocCommand.Execute(null);
+    }
+
+    // ==================== DRAG-AND-DROP ДЛЯ ФАЙЛА ПРОЕКТА ====================
+
+    private void ProjectFileDropZone_DragOver(object sender, DragEventArgs e)
+    {
+        if (e.Data.GetDataPresent(DataFormats.FileDrop))
+            e.Effects = DragDropEffects.Copy;
+        else
+            e.Effects = DragDropEffects.None;
+
+        e.Handled = true;
+    }
+
+    private async void ProjectFileDropZone_Drop(object sender, DragEventArgs e)
+    {
+        if (DataContext is not ProjectDocsViewModel vm) return;
+
+        if (e.Data.GetDataPresent(DataFormats.FileDrop))
+        {
+            var files = (string[])e.Data.GetData(DataFormats.FileDrop);
+            await vm.HandleProjectFileDrop(files);
+        }
+    }
+}
+Код для файла ProtocolsView.xaml:
+<UserControl x:Class="AGenerator.Views.ProtocolsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:AGenerator.ViewModels"
+             xmlns:models="clr-namespace:AGenerator.Models"
+             xmlns:converters="clr-namespace:AGenerator.Converters"
+             mc:Ignorable="d"
+             d:DesignHeight="450" d:DesignWidth="800"
+             d:DataContext="{d:DesignInstance vm:ProtocolsViewModel}">
+
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
+        <converters:NullToBoolConverter x:Key="NullToBoolConverter"/>
+    </UserControl.Resources>
+
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Тулбар -->
+        <Border Grid.Row="0" Background="{DynamicResource GlassBrush}" CornerRadius="12" Padding="15" Margin="0,0,0,10" Effect="{StaticResource GlassShadow}">
+            <StackPanel Orientation="Horizontal">
+                <Button Content="➕ Добавить"
+                        Command="{Binding AddNewProtocolCommand}"
+                        Style="{StaticResource PrimaryGlassButton}"
+                        Padding="10,5" Margin="0,0,5,0"/>
+                <Button Content="✏️ Изменить"
+                        Command="{Binding EditSelectedProtocolCommand}"
+                        Style="{StaticResource SecondaryGlassButton}"
+                        Padding="10,5" Margin="0,0,5,0"
+                        IsEnabled="{Binding SelectedProtocol, Converter={StaticResource NullToBoolConverter}}"/>
+                <Button Content="🗑️ Удалить"
+                        Command="{Binding DeleteSelectedProtocolCommand}"
+                        Style="{StaticResource SecondaryGlassButton}"
+                        Padding="10,5" Margin="0,0,5,0"
+                        IsEnabled="{Binding SelectedProtocol, Converter={StaticResource NullToBoolConverter}}"/>
+                <Button Content="🔄 Обновить"
+                        Command="{Binding RefreshAsyncCommand}"
+                        Style="{StaticResource GlassButton}"
+                        Padding="10,5"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Поиск -->
+        <TextBox Grid.Row="1"
+                 Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                 Style="{StaticResource GlassTextBox}"
+                 Margin="0,0,0,10"
+                 Padding="5"
+                 ToolTip="Поиск по номеру или названию"/>
+
+        <!-- Таблица протоколов -->
+        <DataGrid Grid.Row="2"
+                  x:Name="ProtocolsDataGrid"
+                  ItemsSource="{Binding Protocols}"
+                  SelectedItem="{Binding SelectedProtocol}"
+                  AutoGenerateColumns="False"
+                  IsReadOnly="True"
+                  CanUserAddRows="False"
+                  CanUserDeleteRows="False"
+                  GridLinesVisibility="All"
+                  SelectionMode="Single"
+                  MouseDoubleClick="ProtocolsDataGrid_MouseDoubleClick"
+                  Style="{StaticResource GlassDataGrid}">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Тип док." Width="130" Binding="{Binding DocumentTypeDisplay}"/>
+                <DataGridTextColumn Header="№ протокола" Width="100" Binding="{Binding Number}"/>
+                <DataGridTextColumn Header="Наименование" Binding="{Binding Name}" Width="200"/>
+                <DataGridTextColumn Header="Дата" Width="90" Binding="{Binding Date, StringFormat={}{0:dd.MM.yyyy}}"/>
+                <DataGridTextColumn Header="Лаборатория" Width="150" Binding="{Binding Laboratory}"/>
+                <DataGridTextColumn Header="Результат" Width="130" Binding="{Binding Result}"/>
+                <!-- Колонка файла протокола -->
+                <DataGridTemplateColumn Header="Файл" Width="80">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <Button Content="📎"
+                                    ToolTip="{Binding FileName, Mode=OneWay}"
+                                    Command="{Binding DataContext.OpenProtocolFileCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                    Visibility="{Binding FileName, Mode=OneWay, Converter={StaticResource NullToBoolConverter}, ConverterParameter=Inverted}"
+                                    Padding="2"
+                                    BorderThickness="0"
+                                    Background="Transparent"
+                                    Cursor="Hand"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <!-- Модальное окно редактирования (Overlay) -->
+        <Border Grid.Row="0" Grid.RowSpan="3"
+                Background="#CC000000"
+                Visibility="{Binding IsEditing, Converter={StaticResource BoolToVisibility}}"
+                Panel.ZIndex="100">
+            <Border Background="#F0FFFFFF"
+                    Width="580"
+                    MaxHeight="680"
+                    VerticalAlignment="Center"
+                    HorizontalAlignment="Center"
+                    Padding="25"
+                    CornerRadius="15"
+                    Margin="20"
+                    BorderThickness="1"
+                    BorderBrush="{DynamicResource GlassBorderBrush}"
+                    Effect="{StaticResource GlassShadow}">
+
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel>
+                        <!-- Заголовок с кнопкой закрытия -->
+                        <Grid Margin="0,0,0,20">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0"
+                                       Text="Протокол испытаний"
+                                       FontSize="20"
+                                       FontWeight="Bold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"
+                                       VerticalAlignment="Center"/>
+                            <Button Grid.Column="1"
+                                    Content="✕"
+                                    Command="{Binding CancelEditCommand}"
+                                    Width="32" Height="32"
+                                    FontSize="16"
+                                    HorizontalAlignment="Right"
+                                    VerticalAlignment="Top"
+                                    Background="Transparent"
+                                    BorderThickness="0"
+                                    Cursor="Hand"
+                                    ToolTip="Закрыть"/>
+                        </Grid>
+
+                        <TextBlock Text="№ протокола:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBox Text="{Binding EditingProtocol.Number, UpdateSourceTrigger=PropertyChanged}"
+                                 Style="{StaticResource GlassTextBox}"
+                                 Margin="0,0,0,12" Padding="5"/>
+
+                        <TextBlock Text="Тип документа:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <ComboBox SelectedItem="{Binding EditingProtocol.DocumentType}" Margin="0,0,0,12"
+                                  Style="{StaticResource GlassComboBox}">
+                            <models:ProtocolDocType>TestProtocol</models:ProtocolDocType>
+                            <models:ProtocolDocType>Conclusion</models:ProtocolDocType>
+                        </ComboBox>
+
+                        <TextBlock Text="Наименование испытания:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBox Text="{Binding EditingProtocol.Name, UpdateSourceTrigger=PropertyChanged}"
+                                 Style="{StaticResource GlassTextBox}"
+                                 Margin="0,0,0,12" Padding="5"/>
+
+                        <TextBlock Text="Тип испытаний:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBox Text="{Binding EditingProtocol.Type, UpdateSourceTrigger=PropertyChanged}"
+                                 Style="{StaticResource GlassTextBox}"
+                                 Margin="0,0,0,12" Padding="5"/>
+
+                        <TextBlock Text="Дата:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <DatePicker SelectedDate="{Binding EditingProtocol.Date}"
+                                    HorizontalAlignment="Stretch" Margin="0,0,0,12"/>
+
+                        <TextBlock Text="Лаборатория:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBox Text="{Binding EditingProtocol.Laboratory, UpdateSourceTrigger=PropertyChanged}"
+                                 Style="{StaticResource GlassTextBox}"
+                                 Margin="0,0,0,12" Padding="5"/>
+
+                        <TextBlock Text="Результат:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBox Text="{Binding EditingProtocol.Result, UpdateSourceTrigger=PropertyChanged}"
+                                 Style="{StaticResource GlassTextBox}"
+                                 Margin="0,0,0,12" Padding="5"/>
+
+                        <!-- ==================== ЗОНА ПРИКРЕПЛЕНИЯ ФАЙЛА ПРОТОКОЛА ==================== -->
+                        <TextBlock Text="📎 Файл протокола:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <Border x:Name="ProtocolDropZone"
+                                BorderBrush="#CCC" BorderThickness="2"
+                                Padding="15" Margin="0,0,0,12"
+                                CornerRadius="5"
+                                AllowDrop="True"
+                                DragOver="ProtocolDropZone_DragOver"
+                                Drop="ProtocolDropZone_Drop"
+                                Background="#FAFAFA">
+                            <StackPanel>
+                                <TextBlock Text="Перетащите файл сюда или нажмите кнопку:"
+                                           Foreground="#666" FontSize="12" Margin="0,0,0,8"/>
+                                <StackPanel Orientation="Horizontal">
+                                    <Button Content="📎 Прикрепить протокол"
+                                            Command="{Binding AttachProtocolFileCommand}"
+                                            Style="{StaticResource GlassButton}"
+                                            Padding="10,5" Margin="0,0,10,0"/>
+                                    <Button Content="🗑️ Удалить"
+                                            Command="{Binding RemoveProtocolFileCommand}"
+                                            Style="{StaticResource SecondaryGlassButton}"
+                                            Padding="10,5"
+                                            Visibility="{Binding HasProtocolFile, Converter={StaticResource BoolToVisibility}}"/>
+                                </StackPanel>
+                                <TextBlock Margin="0,8,0,0" FontSize="12" Foreground="Green"
+                                           Visibility="{Binding HasProtocolFile, Converter={StaticResource BoolToVisibility}}">
+                                    <Run Text="✅ Прикреплён: "/>
+                                    <Run Text="{Binding EditingProtocol.FileName, Mode=OneWay}"/>
+                                </TextBlock>
+                            </StackPanel>
+                        </Border>
+
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+                            <Button Content="💾 Сохранить"
+                                    Command="{Binding SaveProtocolCommand}"
+                                    Style="{StaticResource PrimaryGlassButton}"
+                                    Padding="15,8"
+                                    Margin="0,0,10,0"
+                                    IsDefault="True"/>
+                            <Button Content="❌ Отмена"
+                                    Command="{Binding CancelEditCommand}"
+                                    Style="{StaticResource SecondaryGlassButton}"
+                                    Padding="15,8"
+                                    IsCancel="True"/>
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+        </Border>
+    </Grid>
+</UserControl>
+Код для файла ProtocolsView.xaml.cs:
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Input;
+using AGenerator.ViewModels;
+
+namespace AGenerator.Views;
+
+public partial class ProtocolsView : UserControl
+{
+    public ProtocolsView()
+    {
+        InitializeComponent();
+    }
+
+    private void ProtocolsDataGrid_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+    {
+        if (DataContext is ProtocolsViewModel vm)
+            vm.EditSelectedProtocolCommand.Execute(null);
+    }
+
+    // ==================== DRAG-AND-DROP ДЛЯ ФАЙЛА ПРОТОКОЛА ====================
+
+    private void ProtocolDropZone_DragOver(object sender, DragEventArgs e)
+    {
+        if (e.Data.GetDataPresent(DataFormats.FileDrop))
+            e.Effects = DragDropEffects.Copy;
+        else
+            e.Effects = DragDropEffects.None;
+
+        e.Handled = true;
+    }
+
+    private async void ProtocolDropZone_Drop(object sender, DragEventArgs e)
+    {
+        if (DataContext is not ProtocolsViewModel vm) return;
+
+        if (e.Data.GetDataPresent(DataFormats.FileDrop))
+        {
+            var files = (string[])e.Data.GetData(DataFormats.FileDrop);
+            await vm.HandleProtocolFileDrop(files);
+        }
+    }
+}
+Код для файла SchemasView.xaml:
+<UserControl x:Class="AGenerator.Views.SchemasView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:AGenerator.ViewModels"
+             xmlns:converters="clr-namespace:AGenerator.Converters"
+             mc:Ignorable="d"
+             d:DesignHeight="450" d:DesignWidth="800"
+             d:DataContext="{d:DesignInstance vm:SchemasViewModel}">
+
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
+        <converters:NullToBoolConverter x:Key="NullToBoolConverter"/>
+    </UserControl.Resources>
+
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Тулбар -->
+        <Border Grid.Row="0" Background="{DynamicResource GlassBrush}" CornerRadius="12" Padding="15" Margin="0,0,0,10" Effect="{StaticResource GlassShadow}">
+            <StackPanel Orientation="Horizontal">
+                <Button Content="➕ Добавить"
+                        Command="{Binding AddNewSchemaCommand}"
+                        Style="{StaticResource PrimaryGlassButton}"
+                        Padding="10,5" Margin="0,0,5,0"/>
+                <Button Content="✏️ Изменить"
+                        Command="{Binding EditSelectedSchemaCommand}"
+                        Style="{StaticResource SecondaryGlassButton}"
+                        Padding="10,5" Margin="0,0,5,0"
+                        IsEnabled="{Binding SelectedSchema, Converter={StaticResource NullToBoolConverter}}"/>
+                <Button Content="🗑️ Удалить"
+                        Command="{Binding DeleteSelectedSchemaCommand}"
+                        Style="{StaticResource SecondaryGlassButton}"
+                        Padding="10,5" Margin="0,0,5,0"
+                        IsEnabled="{Binding SelectedSchema, Converter={StaticResource NullToBoolConverter}}"/>
+                <Button Content="🔄 Обновить"
+                        Command="{Binding RefreshAsyncCommand}"
+                        Style="{StaticResource GlassButton}"
+                        Padding="10,5"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Поиск -->
+        <TextBox Grid.Row="1"
+                 Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                 Style="{StaticResource GlassTextBox}"
+                 Margin="0,0,0,10"
+                 Padding="5"
+                 ToolTip="Поиск по номеру или названию"/>
+
+        <!-- Таблица схем -->
+        <DataGrid Grid.Row="2"
+                  x:Name="SchemasDataGrid"
+                  ItemsSource="{Binding Schemas}"
+                  SelectedItem="{Binding SelectedSchema}"
+                  AutoGenerateColumns="False"
+                  IsReadOnly="True"
+                  CanUserAddRows="False"
+                  CanUserDeleteRows="False"
+                  GridLinesVisibility="All"
+                  SelectionMode="Single"
+                  MouseDoubleClick="SchemasDataGrid_MouseDoubleClick"
+                  Style="{StaticResource GlassDataGrid}">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="№ схемы" Width="150" Binding="{Binding Number}"/>
+                <DataGridTextColumn Header="Название" Binding="{Binding Name}" Width="250"/>
+                <DataGridTextColumn Header="Стадия" Width="100" Binding="{Binding Stage}"/>
+                <DataGridTextColumn Header="Дата" Width="100" Binding="{Binding Date, StringFormat={}{0:dd.MM.yyyy}}"/>
+                <DataGridTextColumn Header="Автор" Width="150" Binding="{Binding Author}"/>
+                <!-- Колонка файла схемы -->
+                <DataGridTemplateColumn Header="Файл" Width="80">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <Button Content="📎"
+                                    ToolTip="{Binding FilePath, Mode=OneWay}"
+                                    Command="{Binding DataContext.OpenSchemaFileCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                    Visibility="{Binding FilePath, Mode=OneWay, Converter={StaticResource NullToBoolConverter}, ConverterParameter=Inverted}"
+                                    Padding="2"
+                                    BorderThickness="0"
+                                    Background="Transparent"
+                                    Cursor="Hand"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <!-- Модальное окно редактирования (Overlay) -->
+        <Border Grid.Row="0" Grid.RowSpan="3"
+                Background="#CC000000"
+                Visibility="{Binding IsEditing, Converter={StaticResource BoolToVisibility}}"
+                Panel.ZIndex="100">
+            <Border Background="#F0FFFFFF"
+                    Width="550"
+                    MaxHeight="600"
+                    VerticalAlignment="Center"
+                    HorizontalAlignment="Center"
+                    Padding="25"
+                    CornerRadius="15"
+                    Margin="20"
+                    BorderThickness="1"
+                    BorderBrush="{DynamicResource GlassBorderBrush}"
+                    Effect="{StaticResource GlassShadow}">
+
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel>
+                        <!-- Заголовок с кнопкой закрытия -->
+                        <Grid Margin="0,0,0,20">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0"
+                                       Text="Исполнительная схема"
+                                       FontSize="20"
+                                       FontWeight="Bold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"
+                                       VerticalAlignment="Center"/>
+                            <Button Grid.Column="1"
+                                    Content="✕"
+                                    Command="{Binding CancelEditCommand}"
+                                    Width="32" Height="32"
+                                    FontSize="16"
+                                    HorizontalAlignment="Right"
+                                    VerticalAlignment="Top"
+                                    Background="Transparent"
+                                    BorderThickness="0"
+                                    Cursor="Hand"
+                                    ToolTip="Закрыть"/>
+                        </Grid>
+
+                        <TextBlock Text="№ схемы:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBox Text="{Binding EditingSchema.Number, UpdateSourceTrigger=PropertyChanged}"
+                                 Style="{StaticResource GlassTextBox}"
+                                 Margin="0,0,0,12" Padding="5"/>
+
+                        <TextBlock Text="Название:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBox Text="{Binding EditingSchema.Name, UpdateSourceTrigger=PropertyChanged}"
+                                 Style="{StaticResource GlassTextBox}"
+                                 Margin="0,0,0,12" Padding="5"/>
+
+                        <TextBlock Text="Стадия:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBox Text="{Binding EditingSchema.Stage, UpdateSourceTrigger=PropertyChanged}"
+                                 Style="{StaticResource GlassTextBox}"
+                                 Margin="0,0,0,12" Padding="5"/>
+
+                        <TextBlock Text="Дата составления:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <DatePicker SelectedDate="{Binding EditingSchema.Date}"
+                                    HorizontalAlignment="Stretch" Margin="0,0,0,12"/>
+
+                        <TextBlock Text="Автор (кто составил):" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBox Text="{Binding EditingSchema.Author, UpdateSourceTrigger=PropertyChanged}"
+                                 Style="{StaticResource GlassTextBox}"
+                                 Margin="0,0,0,12" Padding="5"/>
+
+                        <!-- ==================== ЗОНА ПРИКРЕПЛЕНИЯ ФАЙЛА СХЕМЫ ==================== -->
+                        <TextBlock Text="📎 Файл схемы:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <Border x:Name="SchemaDropZone"
+                                BorderBrush="#CCC" BorderThickness="2"
+                                Padding="15" Margin="0,0,0,12"
+                                CornerRadius="5"
+                                AllowDrop="True"
+                                DragOver="SchemaDropZone_DragOver"
+                                Drop="SchemaDropZone_Drop"
+                                Background="#FAFAFA">
+                            <StackPanel>
+                                <TextBlock Text="Перетащите файл сюда или нажмите кнопку:"
+                                           Foreground="#666" FontSize="12" Margin="0,0,0,8"/>
+                                <StackPanel Orientation="Horizontal">
+                                    <Button Content="📎 Прикрепить файл"
+                                            Command="{Binding AttachSchemaFileCommand}"
+                                            Style="{StaticResource GlassButton}"
+                                            Padding="10,5" Margin="0,0,10,0"/>
+                                    <Button Content="🗑️ Удалить"
+                                            Command="{Binding RemoveSchemaFileCommand}"
+                                            Style="{StaticResource SecondaryGlassButton}"
+                                            Padding="10,5"
+                                            Visibility="{Binding HasSchemaFile, Converter={StaticResource BoolToVisibility}}"/>
+                                </StackPanel>
+                                <TextBlock Margin="0,8,0,0" FontSize="12" Foreground="Green"
+                                           Visibility="{Binding HasSchemaFile, Converter={StaticResource BoolToVisibility}}">
+                                    <Run Text="✅ Прикреплён: "/>
+                                    <Run Text="{Binding EditingSchema.FileName, Mode=OneWay}"/>
+                                </TextBlock>
+                            </StackPanel>
+                        </Border>
+
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+                            <Button Content="💾 Сохранить"
+                                    Command="{Binding SaveSchemaCommand}"
+                                    Style="{StaticResource PrimaryGlassButton}"
+                                    Padding="15,8"
+                                    Margin="0,0,10,0"
+                                    IsDefault="True"/>
+                            <Button Content="❌ Отмена"
+                                    Command="{Binding CancelEditCommand}"
+                                    Style="{StaticResource SecondaryGlassButton}"
+                                    Padding="15,8"
+                                    IsCancel="True"/>
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+        </Border>
+    </Grid>
+</UserControl>
+Код для файла SchemasView.xaml.cs:
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Input;
+using AGenerator.ViewModels;
+
+namespace AGenerator.Views;
+
+public partial class SchemasView : UserControl
+{
+    public SchemasView()
+    {
+        InitializeComponent();
+    }
+
+    private void SchemasDataGrid_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+    {
+        if (DataContext is SchemasViewModel vm)
+            vm.EditSelectedSchemaCommand.Execute(null);
+    }
+
+    // ==================== DRAG-AND-DROP ДЛЯ ФАЙЛА СХЕМЫ ====================
+
+    private void SchemaDropZone_DragOver(object sender, DragEventArgs e)
+    {
+        if (e.Data.GetDataPresent(DataFormats.FileDrop))
+            e.Effects = DragDropEffects.Copy;
+        else
+            e.Effects = DragDropEffects.None;
+
+        e.Handled = true;
+    }
+
+    private async void SchemaDropZone_Drop(object sender, DragEventArgs e)
+    {
+        if (DataContext is not SchemasViewModel vm) return;
+
+        if (e.Data.GetDataPresent(DataFormats.FileDrop))
+        {
+            var files = (string[])e.Data.GetData(DataFormats.FileDrop);
+            await vm.HandleSchemaFileDrop(files);
+        }
+    }
+}
+Код для файла SettingsView.xaml:
+<UserControl x:Class="AGenerator.Views.SettingsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             d:DesignHeight="500" d:DesignWidth="480">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Margin="20">
+
+                <!-- === ТЕМА ОФОРМЛЕНИЯ === -->
+                <TextBlock Text="🎨 Тема оформления" FontSize="16" FontWeight="Bold"
+                           Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,12"/>
+
+                <ItemsControl x:Name="ThemesList">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Button Click="Theme_Click" Tag="{Binding}"
+                                    Margin="0,0,8,8" Padding="10,8"
+                                    BorderThickness="2" BorderBrush="#DDD"
+                                    Background="White" Cursor="Hand"
+                                    Width="130" Height="60"
+                                    HorizontalContentAlignment="Left">
+                                <Button.Style>
+                                    <Style TargetType="Button">
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border Background="{TemplateBinding Background}"
+                                                            BorderBrush="{TemplateBinding BorderBrush}"
+                                                            BorderThickness="{TemplateBinding BorderThickness}"
+                                                            CornerRadius="8" Padding="8">
+                                                        <StackPanel>
+                                                            <TextBlock Text="{Binding Name}" FontSize="11" FontWeight="SemiBold"
+                                                                       Foreground="{Binding PrimaryColor}" TextWrapping="Wrap"/>
+                                                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                                                <Border Width="14" Height="14" CornerRadius="3"
+                                                                        Background="{Binding PrimaryColor}" Margin="1"/>
+                                                                <Border Width="14" Height="14" CornerRadius="3"
+                                                                        Background="{Binding SecondaryColor}" Margin="1"/>
+                                                                <Border Width="14" Height="14" CornerRadius="3"
+                                                                        Background="{Binding AccentColor}" Margin="1"/>
+                                                                <Border Width="14" Height="14" CornerRadius="3"
+                                                                        Background="{Binding BackgroundColor}" Margin="1"
+                                                                        BorderBrush="#CCC" BorderThickness="1"/>
+                                                            </StackPanel>
+                                                        </StackPanel>
+                                                    </Border>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                        <Style.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter Property="BorderBrush" Value="#999"/>
+                                            </Trigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <!-- Разделитель -->
+                <Border Height="1" Background="#E0E0E0" Margin="0,10"/>
+
+                <!-- === РУЧНАЯ НАСТРОЙКА === -->
+                <TextBlock Text="✏️ Ручная настройка цветов" FontSize="16" FontWeight="Bold"
+                           Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,12,0,10"/>
+
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="120"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Основной:"
+                               VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,6"/>
+                    <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal">
+                        <Button x:Name="PrimaryColorBtn" Width="36" Height="36" Margin="0,4,8,4"
+                                Click="ColorButton_Click" Tag="Primary" Cursor="Hand"
+                                ToolTip="Выбрать основной цвет"
+                                Background="#4FC3F7">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border x:Name="Border" Background="{TemplateBinding Background}" CornerRadius="6"
+                                            BorderBrush="#CCC" BorderThickness="1">
+                                        <TextBlock Text="🎨" FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+                        <TextBlock x:Name="PrimaryColorLabel" Text="#4FC3F7" VerticalAlignment="Center"
+                                   FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                    </StackPanel>
+
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Вторичный:"
+                               VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,6"/>
+                    <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal">
+                        <Button x:Name="SecondaryColorBtn" Width="36" Height="36" Margin="0,4,8,4"
+                                Click="ColorButton_Click" Tag="Secondary" Cursor="Hand"
+                                ToolTip="Выбрать вторичный цвет"
+                                Background="#2196F3">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border x:Name="Border" Background="{TemplateBinding Background}" CornerRadius="6"
+                                            BorderBrush="#CCC" BorderThickness="1">
+                                        <TextBlock Text="🎨" FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+                        <TextBlock x:Name="SecondaryColorLabel" Text="#2196F3" VerticalAlignment="Center"
+                                   FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                    </StackPanel>
+
+                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Акцент:"
+                               VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,6"/>
+                    <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal">
+                        <Button x:Name="AccentColorBtn" Width="36" Height="36" Margin="0,4,8,4"
+                                Click="ColorButton_Click" Tag="Accent" Cursor="Hand"
+                                ToolTip="Выбрать цвет акцента"
+                                Background="#1976D2">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border x:Name="Border" Background="{TemplateBinding Background}" CornerRadius="6"
+                                            BorderBrush="#CCC" BorderThickness="1">
+                                        <TextBlock Text="🎨" FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+                        <TextBlock x:Name="AccentColorLabel" Text="#1976D2" VerticalAlignment="Center"
+                                   FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Разделитель -->
+                <Border Height="1" Background="#E0E0E0" Margin="0,10"/>
+
+                <!-- Кнопки -->
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+                    <Button Content="🔄 Сбросить" Click="ResetTheme_Click"
+                            Style="{DynamicResource SecondaryGlassButton}" Margin="0,0,8,0"/>
+                    <Button Content="✅ Применить" Click="ApplyTheme_Click"
+                            Style="{DynamicResource PrimaryGlassButton}"/>
+                </StackPanel>
+
+            </StackPanel>
+        </ScrollViewer>
+</UserControl>
+Код для файла SettingsView.xaml.cs:
+using System;
+using System.Collections.Generic;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Media;
+using AGenerator.Services;
+
+namespace AGenerator.Views;
+
+public partial class SettingsView : UserControl
+{
+    private readonly List<ThemePreset> _presets;
+    private readonly ThemeService _themeService;
+    private ThemeSettings _currentSettings;
+
+    public SettingsView()
+    {
+        InitializeComponent();
+
+        _themeService = new ThemeService();
+
+        _presets = new List<ThemePreset>
+        {
+            new ThemePreset { Name = "Ocean Breeze", Description = "Морской бриз", PrimaryColor = "#4FC3F7", SecondaryColor = "#2196F3", AccentColor = "#1976D2" },
+            new ThemePreset { Name = "Forest Dawn", Description = "Лесной рассвет", PrimaryColor = "#66BB6A", SecondaryColor = "#43A047", AccentColor = "#2E7D32" },
+            new ThemePreset { Name = "Sunset Glow", Description = "Закатное сияние", PrimaryColor = "#FFA726", SecondaryColor = "#FB8C00", AccentColor = "#E65100" },
+            new ThemePreset { Name = "Royal Purple", Description = "Королевский", PrimaryColor = "#AB47BC", SecondaryColor = "#8E24AA", AccentColor = "#6A1B9A" },
+            new ThemePreset { Name = "Midnight Steel", Description = "Полночная сталь", PrimaryColor = "#78909C", SecondaryColor = "#546E7A", AccentColor = "#37474F" }
+        };
+
+        ThemesList.ItemsSource = _presets;
+
+        // Загружаем текущую тему
+        _currentSettings = LoadCurrentTheme();
+        UpdateColorButtons();
+    }
+
+    private ThemeSettings LoadCurrentTheme()
+    {
+        try
+        {
+            var resources = Application.Current.Resources;
+            var gradient = resources["MainGradient"] as LinearGradientBrush;
+            string primary = "#4FC3F7", secondary = "#2196F3", accent = "#1976D2";
+
+            if (gradient != null && gradient.GradientStops.Count >= 2)
+            {
+                primary = gradient.GradientStops[0].Color.ToString();
+                secondary = gradient.GradientStops[1].Color.ToString();
+            }
+
+            if (resources["AccentColor"] is Color accentColor)
+                accent = accentColor.ToString();
+
+            return new ThemeSettings
+            {
+                PrimaryColor = primary,
+                SecondaryColor = secondary,
+                AccentColor = accent,
+                TextColor = "#2D3748"
+            };
+        }
+        catch
+        {
+            return new ThemeSettings();
+        }
+    }
+
+    private void UpdateColorButtons()
+    {
+        PrimaryColorBtn.Background = ParseBrush(_currentSettings.PrimaryColor);
+        PrimaryColorLabel.Text = _currentSettings.PrimaryColor;
+
+        SecondaryColorBtn.Background = ParseBrush(_currentSettings.SecondaryColor);
+        SecondaryColorLabel.Text = _currentSettings.SecondaryColor;
+
+        AccentColorBtn.Background = ParseBrush(_currentSettings.AccentColor);
+        AccentColorLabel.Text = _currentSettings.AccentColor;
+    }
+
+    private void Theme_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button button || button.Tag is not ThemePreset theme) return;
+
+        _currentSettings = new ThemeSettings
+        {
+            PrimaryColor = theme.PrimaryColor,
+            SecondaryColor = theme.SecondaryColor,
+            AccentColor = theme.AccentColor,
+            TextColor = "#2D3748"
+        };
+
+        // Сразу обновляем кисти в ресурсах, чтобы кнопки изменили цвет
+        ApplyThemePreview(_currentSettings);
+        UpdateColorButtons();
+    }
+
+    /// <summary>
+    /// Предварительное применение темы к ресурсам (без сохранения)
+    /// </summary>
+    private void ApplyThemePreview(ThemeSettings theme)
+    {
+        var resources = Application.Current.Resources;
+
+        // Обновляем градиент
+        var gradient = new LinearGradientBrush
+        {
+            StartPoint = new Point(0, 0),
+            EndPoint = new Point(1, 1)
+        };
+        gradient.GradientStops.Add(new GradientStop(ParseColor(theme.PrimaryColor), 0));
+        gradient.GradientStops.Add(new GradientStop(ParseColor(theme.SecondaryColor), 1));
+        resources["MainGradient"] = gradient;
+
+        // Обновляем кисти акцентного цвета
+        var accentColor = ParseColor(theme.AccentColor);
+        resources["AccentBrush"] = new SolidColorBrush(accentColor);
+        resources["AccentLightBrush"] = new SolidColorBrush(Color.FromArgb(0x40, accentColor.R, accentColor.G, accentColor.B));
+
+        // Вычисляем контрастный цвет текста для кнопок
+        var luminance = (0.299 * accentColor.R + 0.587 * accentColor.G + 0.114 * accentColor.B) / 255.0;
+        var accentTextColor = luminance < 0.5 ? Colors.White : Color.FromRgb(0x1A, 0x20, 0x2C);
+        resources["AccentTextBrush"] = new SolidColorBrush(accentTextColor);
+
+        // Обновляем цвета текста
+        var textColor = CalculateContrastTextColor(theme.PrimaryColor, theme.SecondaryColor);
+        var secondaryTextColor = CalculateSecondaryTextColor(textColor);
+        resources["TextPrimaryBrush"] = new SolidColorBrush(ParseColor(textColor));
+        resources["TextSecondaryBrush"] = new SolidColorBrush(ParseColor(secondaryTextColor));
+        resources["TextPrimary"] = ParseColor(textColor);
+        resources["TextSecondary"] = ParseColor(secondaryTextColor);
+
+        // Обновляем GlassBrush
+        resources["GlassBrush"] = new SolidColorBrush(Color.FromArgb(0x80, 0xFF, 0xFF, 0xFF));
+        resources["GlassBorderBrush"] = new SolidColorBrush(Color.FromArgb(0x40, 0xFF, 0xFF, 0xFF));
+
+        // Обновляем все окна
+        RefreshAllWindows();
+    }
+
+    private static string CalculateContrastTextColor(string primaryColor, string secondaryColor)
+    {
+        var primary = ParseColor(primaryColor);
+        var secondary = ParseColor(secondaryColor);
+
+        var primaryLuminance = (0.299 * primary.R + 0.587 * primary.G + 0.114 * primary.B) / 255.0;
+        var secondaryLuminance = (0.299 * secondary.R + 0.587 * secondary.G + 0.114 * secondary.B) / 255.0;
+        var avgLuminance = (primaryLuminance + secondaryLuminance) / 2.0;
+
+        if (avgLuminance < 0.5)
+        {
+            return "#F0F0F0";
+        }
+        else
+        {
+            return "#1A202C";
+        }
+    }
+
+    private static string CalculateSecondaryTextColor(string primaryTextColor)
+    {
+        var color = ParseColor(primaryTextColor);
+        var luminance = (0.299 * color.R + 0.587 * color.G + 0.114 * color.B) / 255.0;
+
+        if (luminance > 0.5)
+        {
+            return "#4A5568";
+        }
+        else
+        {
+            return "#CBD5E0";
+        }
+    }
+
+    private void ColorButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button btn || btn.Tag is not string colorKey) return;
+
+        var currentColor = colorKey switch
+        {
+            "Primary" => _currentSettings.PrimaryColor,
+            "Secondary" => _currentSettings.SecondaryColor,
+            "Accent" => _currentSettings.AccentColor,
+            _ => "#FFFFFF"
+        };
+
+        var picker = new ColorPickerWindow(currentColor);
+        if (picker.ShowDialog() == true)
+        {
+            var newColor = picker.SelectedColor;
+
+            switch (colorKey)
+            {
+                case "Primary":
+                    _currentSettings.PrimaryColor = newColor;
+                    break;
+                case "Secondary":
+                    _currentSettings.SecondaryColor = newColor;
+                    break;
+                case "Accent":
+                    _currentSettings.AccentColor = newColor;
+                    break;
+            }
+
+            // Сразу обновляем кисти при ручном выборе цвета
+            ApplyThemePreview(_currentSettings);
+            UpdateColorButtons();
+        }
+    }
+
+    private void ApplyTheme_Click(object sender, RoutedEventArgs e)
+    {
+        _themeService.ApplyAndSaveTheme(_currentSettings);
+        RefreshAllWindows();
+    }
+
+    private void ResetTheme_Click(object sender, RoutedEventArgs e)
+    {
+        _currentSettings = new ThemeSettings
+        {
+            PrimaryColor = "#4FC3F7",
+            SecondaryColor = "#2196F3",
+            AccentColor = "#1976D2",
+            TextColor = "#2D3748"
+        };
+
+        UpdateColorButtons();
+        _themeService.ApplyAndSaveTheme(_currentSettings);
+        RefreshAllWindows();
+    }
+
+    private void RefreshAllWindows()
+    {
+        // Обновляем все окна
+        foreach (Window window in Application.Current.Windows)
+        {
+            window.InvalidateVisual();
+            window.UpdateLayout();
+            RefreshVisualTree(window);
+        }
+
+        // Обновляем SettingsView и все его дочерние элементы
+        RefreshVisualTree(this);
+        this.InvalidateVisual();
+        this.UpdateLayout();
+    }
+
+    private void RefreshVisualTree(DependencyObject parent)
+    {
+        for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+        {
+            var child = VisualTreeHelper.GetChild(parent, i);
+            if (child is Button btn)
+            {
+                btn.InvalidateProperty(Button.BackgroundProperty);
+                btn.InvalidateProperty(Button.ForegroundProperty);
+                btn.UpdateLayout();
+            }
+            else if (child is Control ctrl)
+            {
+                ctrl.InvalidateProperty(Control.BackgroundProperty);
+                ctrl.InvalidateProperty(Control.BorderBrushProperty);
+                ctrl.InvalidateProperty(Control.ForegroundProperty);
+                ctrl.UpdateLayout();
+            }
+            else if (child is Border border)
+            {
+                border.InvalidateProperty(Border.BackgroundProperty);
+                border.InvalidateProperty(Border.BorderBrushProperty);
+                border.UpdateLayout();
+            }
+            else if (child is Panel panel)
+            {
+                panel.InvalidateProperty(Panel.BackgroundProperty);
+                panel.UpdateLayout();
+            }
+            else if (child is TextBlock tb)
+            {
+                tb.InvalidateProperty(TextBlock.ForegroundProperty);
+                tb.UpdateLayout();
+            }
+            RefreshVisualTree(child);
+        }
+    }
+
+    private static Brush ParseBrush(string hex)
+    {
+        try { return new SolidColorBrush((Color)ColorConverter.ConvertFromString(hex)); }
+        catch { return Brushes.Transparent; }
+    }
+
+    private static Color ParseColor(string hex)
+    {
+        try { return (Color)ColorConverter.ConvertFromString(hex); }
+        catch { return Colors.White; }
+    }
+}
+
+public class ThemePreset
+{
+    public string Name { get; set; } = "";
+    public string Description { get; set; } = "";
+    public string PrimaryColor { get; set; } = "#4FC3F7";
+    public string SecondaryColor { get; set; } = "#2196F3";
+    public string AccentColor { get; set; } = "#1976D2";
+    public string BackgroundColor { get; set; } = "#FFFFFF";
+}

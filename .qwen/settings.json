@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__rider__build_project"
+    ]
+  },
+  "$version": 3
+}

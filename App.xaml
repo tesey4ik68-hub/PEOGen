@@ -1,0 +1,418 @@
+﻿<Application x:Class="AGenerator.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:converters="clr-namespace:AGenerator.Converters">
+    <Application.Resources>
+        <ResourceDictionary>
+            
+            <!-- === КОНВЕРТЕРЫ === -->
+            <converters:NullToBoolConverter x:Key="NullToBoolConverter"/>
+            <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+            
+            <!-- === ЦВЕТОВАЯ ПАЛИТРА GLASSMORPHISM (Светло-синяя) === -->
+            <Color x:Key="GradientStart">#4FC3F7</Color>
+            <Color x:Key="GradientEnd">#2196F3</Color>
+            
+            <Color x:Key="GlassBackground">#80FFFFFF</Color>
+            <Color x:Key="GlassBorder">#40FFFFFF</Color>
+            <Color x:Key="GlassSecondary">#60FFFFFF</Color>
+            
+            <Color x:Key="TextPrimary">#2D3748</Color>
+            <Color x:Key="TextSecondary">#718096</Color>
+            <Color x:Key="AccentColor">#667EEA</Color>
+            
+            <!-- === КИСТИ === -->
+            <LinearGradientBrush x:Key="MainGradient" StartPoint="0,0" EndPoint="1,1">
+                <GradientStop Color="{StaticResource GradientStart}" Offset="0"/>
+                <GradientStop Color="{StaticResource GradientEnd}" Offset="1"/>
+            </LinearGradientBrush>
+
+            <!-- Кисть акцентного цвета (для основных кнопок) -->
+            <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource AccentColor}"/>
+            
+            <!-- Светлая версия акцентного цвета (для вторичных кнопок) -->
+            <SolidColorBrush x:Key="AccentLightBrush" Color="{StaticResource AccentColor}" Opacity="0.25"/>
+            
+            <!-- Цвет текста для акцентных кнопок (будет обновляться в ThemeService) -->
+            <SolidColorBrush x:Key="AccentTextBrush" Color="White"/>
+
+            <SolidColorBrush x:Key="GlassBrush" Color="{StaticResource GlassBackground}"/>
+            <SolidColorBrush x:Key="GlassBorderBrush" Color="{StaticResource GlassBorder}"/>
+            <SolidColorBrush x:Key="TextPrimaryBrush" Color="{StaticResource TextPrimary}"/>
+            <SolidColorBrush x:Key="TextSecondaryBrush" Color="{StaticResource TextSecondary}"/>
+            
+            <!-- === ЭФФЕКТЫ === -->
+            <DropShadowEffect x:Key="GlassShadow"
+                              Color="#000000"
+                              Opacity="0.15"
+                              BlurRadius="20"
+                              ShadowDepth="0"
+                              Direction="270"/>
+
+            <!-- === ГЛОБАЛЬНЫЙ ШРИФТ === -->
+            <Style TargetType="TextBlock">
+                <Setter Property="FontFamily" Value="GOST"/>
+            </Style>
+            <Style TargetType="TextBox">
+                <Setter Property="FontFamily" Value="GOST"/>
+            </Style>
+            <Style TargetType="Button">
+                <Setter Property="FontFamily" Value="GOST"/>
+            </Style>
+            <Style TargetType="ComboBox">
+                <Setter Property="FontFamily" Value="GOST"/>
+            </Style>
+            <Style TargetType="Label">
+                <Setter Property="FontFamily" Value="GOST"/>
+            </Style>
+            <Style TargetType="ListBox">
+                <Setter Property="FontFamily" Value="GOST"/>
+            </Style>
+            <Style TargetType="TabControl">
+                <Setter Property="FontFamily" Value="GOST"/>
+            </Style>
+            <Style TargetType="CheckBox">
+                <Setter Property="FontFamily" Value="GOST"/>
+            </Style>
+            <Style TargetType="DatePicker">
+                <Setter Property="FontFamily" Value="GOST"/>
+            </Style>
+
+            <!-- === СТИЛИ КНОПОК === -->
+            
+            <!-- Базовая стеклянная кнопка -->
+            <Style x:Key="GlassButton" TargetType="Button">
+                <Setter Property="Background" Value="{StaticResource GlassBrush}"/>
+                <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+                <Setter Property="BorderBrush" Value="{StaticResource GlassBorderBrush}"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="Padding" Value="16,10"/>
+                <Setter Property="FontSize" Value="14"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="Cursor" Value="Hand"/>
+                <Setter Property="Effect" Value="{StaticResource GlassShadow}"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Border Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="10"
+                                    Padding="{TemplateBinding Padding}">
+                                <ContentPresenter HorizontalAlignment="Center" 
+                                                  VerticalAlignment="Center"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Background" Value="#A0FFFFFF"/>
+                                </Trigger>
+                                <Trigger Property="IsPressed" Value="True">
+                                    <Setter Property="Background" Value="#B0FFFFFF"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+            
+            <!-- Акцентная кнопка (цвет акцента) -->
+            <Style x:Key="PrimaryGlassButton" TargetType="Button" BasedOn="{StaticResource GlassButton}">
+                <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+                <Setter Property="Foreground" Value="{DynamicResource AccentTextBrush}"/>
+                <Setter Property="BorderBrush" Value="#60FFFFFF"/>
+            </Style>
+
+            <!-- Вторичная кнопка (светлая версия акцента) -->
+            <Style x:Key="SecondaryGlassButton" TargetType="Button" BasedOn="{StaticResource GlassButton}">
+                <Setter Property="Background" Value="{DynamicResource AccentLightBrush}"/>
+            </Style>
+
+            <!-- === СТИЛИ ПОЛЕЙ ВВОДА === -->
+            
+            <Style x:Key="GlassTextBox" TargetType="TextBox">
+                <Setter Property="Background" Value="#60FFFFFF"/>
+                <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+                <Setter Property="BorderBrush" Value="{StaticResource GlassBorderBrush}"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="Padding" Value="12,8"/>
+                <Setter Property="FontSize" Value="14"/>
+                <Setter Property="FontFamily" Value="Segoe UI"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="TextBox">
+                            <Border Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="8"
+                                    Padding="{TemplateBinding Padding}">
+                                <ScrollViewer x:Name="PART_ContentHost" 
+                                              Margin="0" 
+                                              VerticalAlignment="Center"/>
+                            </Border>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+            
+            <Style x:Key="GlassComboBox" TargetType="ComboBox">
+                <Setter Property="Background" Value="#60FFFFFF"/>
+                <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+                <Setter Property="BorderBrush" Value="{StaticResource GlassBorderBrush}"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="Padding" Value="12,8"/>
+                <Setter Property="FontSize" Value="14"/>
+                <Setter Property="FontFamily" Value="Segoe UI"/>
+                <Setter Property="VerticalContentAlignment" Value="Center"/>
+            </Style>
+
+            <!-- === СТИЛЬ DATAGRID (стиль Excel) === -->
+
+            <Style x:Key="GlassDataGrid" TargetType="DataGrid">
+                <Setter Property="Background" Value="White"/>
+                <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+                <Setter Property="BorderBrush" Value="#D4D4D4"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="RowBackground" Value="White"/>
+                <Setter Property="AlternatingRowBackground" Value="#F3F3F3"/>
+                <Setter Property="HeadersVisibility" Value="Column"/>
+                <Setter Property="GridLinesVisibility" Value="Horizontal"/>
+                <Setter Property="HorizontalGridLinesBrush" Value="#D4D4D4"/>
+                <Setter Property="VerticalGridLinesBrush" Value="Transparent"/>
+                <Setter Property="ColumnHeaderHeight" Value="30"/>
+                <Setter Property="RowHeight" Value="22"/>
+                <Setter Property="ColumnHeaderStyle">
+                    <Setter.Value>
+                        <Style TargetType="DataGridColumnHeader">
+                            <Setter Property="Background" Value="#F3F3F3"/>
+                            <Setter Property="Foreground" Value="#333333"/>
+                            <Setter Property="FontWeight" Value="Bold"/>
+                            <Setter Property="FontSize" Value="13"/>
+                            <Setter Property="Padding" Value="6,3"/>
+                            <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                            <Setter Property="BorderBrush" Value="#D4D4D4"/>
+                            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+                            <Setter Property="VerticalContentAlignment" Value="Center"/>
+                            <Setter Property="SeparatorVisibility" Value="Collapsed"/>
+                            <Setter Property="Margin" Value="0"/>
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="DataGridColumnHeader">
+                                        <Grid>
+                                            <Border Background="{TemplateBinding Background}"
+                                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                                    Padding="{TemplateBinding Padding}">
+                                                <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                                                  VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                                            </Border>
+                                            <!-- Область захвата для изменения размера (правая граница) -->
+                                            <Thumb x:Name="PART_RightHeaderGripper"
+                                                   HorizontalAlignment="Right"
+                                                   Width="14"
+                                                   Cursor="SizeWE"
+                                                   Background="Transparent"/>
+                                        </Grid>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter Property="Background" Value="#E5E5E5"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </Setter.Value>
+                </Setter>
+                <Setter Property="HorizontalScrollBarVisibility" Value="Auto"/>
+                <Setter Property="VerticalScrollBarVisibility" Value="Auto"/>
+                <Setter Property="CanUserResizeRows" Value="False"/>
+                <Setter Property="SelectionMode" Value="Extended"/>
+                <Setter Property="SelectionUnit" Value="FullRow"/>
+                <Setter Property="GridLinesVisibility" Value="All"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="DataGrid">
+                            <Border Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    SnapsToDevicePixels="True">
+                                <ScrollViewer x:Name="DG_ScrollViewer" Focusable="False">
+                                    <ScrollViewer.Template>
+                                        <ControlTemplate TargetType="ScrollViewer">
+                                            <Grid>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="*"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                </Grid.RowDefinitions>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                
+                                                <!-- Заголовки колонок -->
+                                                <DataGridColumnHeadersPresenter x:Name="PART_ColumnHeadersPresenter"
+                                                                                Grid.Row="0" Grid.Column="1"/>
+                                                
+                                                <!-- Основная область данных -->
+                                                <ScrollContentPresenter x:Name="PART_ScrollContentPresenter"
+                                                                        Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3"
+                                                                        CanContentScroll="{TemplateBinding CanContentScroll}"/>
+                                                
+                                                <!-- Вертикальная полоса прокрутки -->
+                                                <ScrollBar x:Name="PART_VerticalScrollBar"
+                                                           Grid.Row="1" Grid.Column="2"
+                                                           Maximum="{TemplateBinding ScrollableHeight}"
+                                                           Orientation="Vertical"
+                                                           ViewportSize="{TemplateBinding ViewportHeight}"
+                                                           Value="{Binding VerticalOffset, Mode=OneWay, RelativeSource={RelativeSource TemplatedParent}}"
+                                                           Visibility="{TemplateBinding ComputedVerticalScrollBarVisibility}"/>
+                                                
+                                                <!-- Горизонтальная полоса прокрутки -->
+                                                <ScrollBar x:Name="PART_HorizontalScrollBar"
+                                                           Grid.Row="2" Grid.Column="1"
+                                                           Maximum="{TemplateBinding ScrollableWidth}"
+                                                           Orientation="Horizontal"
+                                                           ViewportSize="{TemplateBinding ViewportWidth}"
+                                                           Value="{Binding HorizontalOffset, Mode=OneWay, RelativeSource={RelativeSource TemplatedParent}}"
+                                                           Visibility="{TemplateBinding ComputedHorizontalScrollBarVisibility}"/>
+                                            </Grid>
+                                        </ControlTemplate>
+                                    </ScrollViewer.Template>
+                                    <ItemsPresenter SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
+                                </ScrollViewer>
+                            </Border>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <!-- Стиль заголовков колонок (Excel-стиль) -->
+            <Style TargetType="DataGridColumnHeader">
+                <Setter Property="Background" Value="#F3F3F3"/>
+                <Setter Property="Foreground" Value="#333333"/>
+                <Setter Property="FontWeight" Value="Bold"/>
+                <Setter Property="FontSize" Value="13"/>
+                <Setter Property="Padding" Value="6,3"/>
+                <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                <Setter Property="BorderBrush" Value="#D4D4D4"/>
+                <Setter Property="HorizontalContentAlignment" Value="Left"/>
+                <Setter Property="VerticalContentAlignment" Value="Center"/>
+                <Setter Property="SeparatorVisibility" Value="Collapsed"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="DataGridColumnHeader">
+                            <Grid>
+                                <Border Background="{TemplateBinding Background}"
+                                        BorderBrush="{TemplateBinding BorderBrush}"
+                                        BorderThickness="{TemplateBinding BorderThickness}"
+                                        Padding="{TemplateBinding Padding}">
+                                    <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                                      VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                                </Border>
+                                <!-- Область захвата для изменения размера (правая граница) -->
+                                <Thumb x:Name="PART_RightHeaderGripper"
+                                       HorizontalAlignment="Right"
+                                       Width="2"
+                                       Cursor="SizeWE"
+                                       Background="Transparent"/>
+                            </Grid>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Background" Value="#E5E5E5"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <!-- Стиль текста в ячейках DataGrid (с переносом) -->
+            <Style x:Key="DataGridCellTextBlockStyle" TargetType="TextBlock">
+                <Setter Property="TextWrapping" Value="Wrap"/>
+                <Setter Property="Padding" Value="4,2"/>
+                <Setter Property="FontSize" Value="12"/>
+            </Style>
+
+            <!-- Стиль ячеек DataGrid -->
+            <Style TargetType="DataGridCell">
+                <Setter Property="Padding" Value="4,1"/>
+                <Setter Property="BorderThickness" Value="0,0,1,1"/>
+                <Setter Property="BorderBrush" Value="#D4D4D4"/>
+                <Setter Property="FontSize" Value="12"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="DataGridCell">
+                            <Border Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    Padding="{TemplateBinding Padding}"
+                                    SnapsToDevicePixels="True">
+                                <ContentPresenter SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsSelected" Value="True">
+                                    <Setter Property="Background" Value="#CCE4F7"/>
+                                    <Setter Property="Foreground" Value="#000000"/>
+                                </Trigger>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Background" Value="#E5F3FF"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <!-- Глобальный стиль для TextBlock внутри DataGridCell (перенос текста) -->
+            <Style TargetType="TextBlock" x:Key="DataGridTextBlockStyle">
+                <Setter Property="TextWrapping" Value="Wrap"/>
+                <Setter Property="Padding" Value="2"/>
+            </Style>
+
+            <!-- Стиль для DataGridTextColumn с переносом текста -->
+            <Style x:Key="WrappingTextColumn" TargetType="DataGridTextColumn">
+                <Setter Property="ElementStyle">
+                    <Setter.Value>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="TextWrapping" Value="Wrap"/>
+                            <Setter Property="Padding" Value="2"/>
+                        </Style>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <!-- Стиль заголовка строки (номер строки) -->
+            <Style TargetType="DataGridRowHeader">
+                <Setter Property="Width" Value="0"/>
+            </Style>
+
+            <!-- Стиль строки DataGrid -->
+            <Style TargetType="DataGridRow">
+                <Setter Property="SnapsToDevicePixels" Value="True"/>
+                <Setter Property="Validation.ErrorTemplate" Value="{x:Null}"/>
+                <Setter Property="ValidationErrorTemplate">
+                    <Setter.Value>
+                        <ControlTemplate>
+                            <TextBlock Text="!" Foreground="Red" FontWeight="Bold" Margin="2,0,0,0"/>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <!-- === СТИЛЬ КАРТОЧКИ === -->
+            
+            <Style x:Key="GlassCard" TargetType="Border">
+                <Setter Property="Background" Value="{StaticResource GlassBrush}"/>
+                <Setter Property="BorderBrush" Value="{StaticResource GlassBorderBrush}"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="CornerRadius" Value="15"/>
+                <Setter Property="Padding" Value="20"/>
+                <Setter Property="Effect" Value="{StaticResource GlassShadow}"/>
+            </Style>
+
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

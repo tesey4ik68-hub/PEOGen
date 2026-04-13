@@ -1,0 +1,233 @@
+﻿<Window x:Class="AGenerator.Views.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="clr-namespace:AGenerator.ViewModels"
+        xmlns:views="clr-namespace:AGenerator.Views"
+        mc:Ignorable="d"
+        Title="{Binding WindowTitle}" Height="800" Width="1400"
+        WindowStartupLocation="CenterScreen"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent">
+
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
+
+        <!-- DataTemplates -->
+        <DataTemplate DataType="{x:Type vm:ActsViewModel}">
+            <views:ActsView/>
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:EmployeesViewModel}">
+            <views:EmployeesView/>
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:MaterialsViewModel}">
+            <views:MaterialsView/>
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:SchemasViewModel}">
+            <views:SchemasView/>
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:ProtocolsViewModel}">
+            <views:ProtocolsView/>
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:ProjectDocsViewModel}">
+            <views:ProjectDocsView/>
+        </DataTemplate>
+
+        <!-- Стили кнопок управления окном -->
+        <Style x:Key="WindowControlButton" TargetType="Button">
+            <Setter Property="Width" Value="46"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                CornerRadius="4">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#20000000"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Background" Value="#40000000"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="CloseWindowButton" TargetType="Button" BasedOn="{StaticResource WindowControlButton}">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                CornerRadius="4">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#E81123"/>
+                                <Setter Property="Foreground" Value="White"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Background" Value="#C50B1A"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <!-- Внешний контейнер с закругленными краями и тенью -->
+    <Border Background="Transparent" Margin="10">
+        <Border.Effect>
+            <DropShadowEffect Color="Black" Opacity="0.3" BlurRadius="25" ShadowDepth="0"/>
+        </Border.Effect>
+
+        <!-- Основной контейнер с закругленными краями -->
+        <Border Background="{DynamicResource MainGradient}" CornerRadius="12">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!-- ШАПКА ОКНА (перетаскиваемая) -->
+                <Border Grid.Row="0" Background="{DynamicResource GlassBrush}"
+                        BorderBrush="{DynamicResource GlassBorderBrush}"
+                        BorderThickness="0,0,0,1"
+                        CornerRadius="12,12,0,0"
+                        MouseLeftButtonDown="Window_MouseLeftButtonDown">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Логотип -->
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="20,12,0,12">
+                            <TextBlock Text="🏗️" FontSize="28" Margin="0,0,12,0"/>
+                            <StackPanel>
+                                <TextBlock Text="P-генератор" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                <TextBlock Text="Система генерации ИД" FontSize="11" Foreground="{DynamicResource TextPrimaryBrush}" Opacity="0.7"/>
+                            </StackPanel>
+                            <Button Content="⚙️"
+                                    Click="Settings_Click"
+                                    Width="36" Height="36"
+                                    Margin="16,0,0,0"
+                                    FontSize="18"
+                                    Background="Transparent"
+                                    BorderThickness="0"
+                                    Cursor="Hand"
+                                    ToolTip="Настройки"
+                                    VerticalAlignment="Center"/>
+                        </StackPanel>
+
+                        <!-- Текущий объект -->
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center"
+                                    Visibility="{Binding CurrentObject, Converter={StaticResource BoolToVisibility}}">
+                            <TextBlock Text="📋 " FontSize="14" VerticalAlignment="Center"/>
+                            <StackPanel>
+                                <TextBlock Text="{Binding CurrentObject.Name}" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                <TextBlock Text="{Binding CurrentObject.Address}" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <!-- Кнопки управления окном -->
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,8,0">
+                            <!-- Статус -->
+                            <TextBlock Text="{Binding StatusMessage}" FontSize="11"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"
+                                       VerticalAlignment="Center"
+                                       Margin="0,0,12,0"
+                                       Opacity="0.7"/>
+                            <!-- Свернуть -->
+                            <Button Content="─"
+                                    Style="{StaticResource WindowControlButton}"
+                                    Click="Minimize_Click"
+                                    ToolTip="Свернуть"/>
+                            <!-- Развернуть/Восстановить -->
+                            <Button x:Name="MaximizeRestoreBtn"
+                                    Content="☐"
+                                    Style="{StaticResource WindowControlButton}"
+                                    Click="MaximizeRestore_Click"
+                                    ToolTip="Развернуть"/>
+                            <!-- Закрыть -->
+                            <Button Content="✕"
+                                    Style="{StaticResource CloseWindowButton}"
+                                    Click="Close_Click"
+                                    ToolTip="Закрыть"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- ТЕЛО -->
+                <Grid Grid.Row="1" Margin="16">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Вкладки навигации (Glass) -->
+                    <Border Grid.Row="0" Background="{DynamicResource GlassBrush}" CornerRadius="10" Padding="8,4" Margin="0,0,0,12" Effect="{StaticResource GlassShadow}">
+                        <TabControl SelectedIndex="{Binding SelectedTabIndex}" Background="Transparent" BorderThickness="0">
+                            <TabControl.Resources>
+                                <Style TargetType="TabItem">
+                                    <Setter Property="Background" Value="Transparent"/>
+                                    <Setter Property="BorderThickness" Value="0"/>
+                                    <Setter Property="Padding" Value="14,8"/>
+                                    <Setter Property="FontSize" Value="13"/>
+                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                    <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+                                    <Setter Property="Cursor" Value="Hand"/>
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="TabItem">
+                                                <Border x:Name="Border" Background="{TemplateBinding Background}"
+                                                        CornerRadius="8" Padding="{TemplateBinding Padding}" Margin="2">
+                                                    <ContentPresenter ContentSource="Header" HorizontalAlignment="Center"/>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsSelected" Value="True">
+                                                        <Setter TargetName="Border" Property="Background" Value="#80FFFFFF"/>
+                                                        <Setter Property="Effect" Value="{StaticResource GlassShadow}"/>
+                                                    </Trigger>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="Border" Property="Background" Value="#60FFFFFF"/>
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
+                            </TabControl.Resources>
+                            <TabItem Header="📄 Акты"/>
+                            <TabItem Header="👥 Сотрудники"/>
+                            <TabItem Header="📦 Материалы"/>
+                            <TabItem Header="🗺️ Схемы"/>
+                            <TabItem Header="🧪 Протоколы и заключения"/>
+                            <TabItem Header="📐 Проекты"/>
+                        </TabControl>
+                    </Border>
+
+                    <!-- Рабочая область (Glass) -->
+                    <Border Grid.Row="1" Background="{DynamicResource GlassBrush}" CornerRadius="12" Padding="12" Effect="{StaticResource GlassShadow}">
+                        <ContentControl Content="{Binding CurrentView}"/>
+                    </Border>
+                </Grid>
+            </Grid>
+        </Border>
+    </Border>
+</Window>

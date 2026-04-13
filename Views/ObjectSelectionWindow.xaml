@@ -1,0 +1,197 @@
+﻿<Window x:Class="AGenerator.Views.ObjectSelectionWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:AGenerator.Views"
+        mc:Ignorable="d"
+        Title="Выбор объекта строительства" Height="500" Width="650"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent">
+
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+        <local:InverseBooleanToVisibilityConverter x:Key="InverseBoolToVis"/>
+
+        <!-- Стили кнопок управления окном -->
+        <Style x:Key="WindowControlButton" TargetType="Button">
+            <Setter Property="Width" Value="46"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="4">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#20000000"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Background" Value="#40000000"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="CloseWindowButton" TargetType="Button" BasedOn="{StaticResource WindowControlButton}">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="4">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#E81123"/>
+                                <Setter Property="Foreground" Value="White"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Background" Value="#C50B1A"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <!-- Внешний контейнер с тенью -->
+    <Border Background="Transparent" Margin="10">
+        <Border.Effect>
+            <DropShadowEffect Color="Black" Opacity="0.3" BlurRadius="25" ShadowDepth="0"/>
+        </Border.Effect>
+
+        <!-- Основной контейнер с закругленными краями -->
+        <Border Background="{DynamicResource MainGradient}" CornerRadius="12">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- ШАПКА (перетаскиваемая) -->
+                <Border Grid.Row="0" Background="{DynamicResource GlassBrush}"
+                        BorderBrush="{DynamicResource GlassBorderBrush}"
+                        BorderThickness="0,0,0,1"
+                        CornerRadius="12,12,0,0"
+                        MouseLeftButtonDown="Window_MouseLeftButtonDown">
+                    <Grid Margin="16,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Заголовок -->
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="🏗️" FontSize="28" Margin="0,0,12,0"/>
+                            <StackPanel>
+                                <TextBlock Text="Выберите объект" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                <TextBlock Text="или создайте новый" FontSize="11" Foreground="{DynamicResource TextPrimaryBrush}" Opacity="0.7"/>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <!-- Кнопки управления окном -->
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button Content="─" Style="{StaticResource WindowControlButton}"
+                                    Click="Minimize_Click" ToolTip="Свернуть"/>
+                            <Button Content="✕" Style="{StaticResource CloseWindowButton}"
+                                    Click="Close_Click" ToolTip="Закрыть"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- Список объектов -->
+                <Border Grid.Row="1" Background="#50FFFFFF" CornerRadius="0" Padding="20,16"
+                        Visibility="{Binding IsCreatingNew, Converter={StaticResource InverseBoolToVis}}">
+                    <ListBox ItemsSource="{Binding Objects}"
+                             SelectedItem="{Binding SelectedObject}"
+                             Background="Transparent" BorderThickness="0"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="#60FFFFFF" CornerRadius="8" Padding="12,10" Margin="0,3">
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="15" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                        <TextBlock Text="{Binding Address}" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="12" Margin="0,3,0,0" Opacity="0.7"/>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                        <ListBox.ItemContainerStyle>
+                            <Style TargetType="ListBoxItem">
+                                <Setter Property="Background" Value="Transparent"/>
+                                <Setter Property="BorderThickness" Value="0"/>
+                                <Setter Property="Padding" Value="0"/>
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="ListBoxItem">
+                                            <Border Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+                                                <ContentPresenter/>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsSelected" Value="True">
+                                                    <Setter Property="Background" Value="#80FFFFFF"/>
+                                                </Trigger>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter Property="Background" Value="#60FFFFFF"/>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </ListBox.ItemContainerStyle>
+                    </ListBox>
+                </Border>
+
+                <!-- Форма создания нового -->
+                <Border Grid.Row="1" Background="#60FFFFFF" Padding="20"
+                        Visibility="{Binding IsCreatingNew, Converter={StaticResource BoolToVis}}">
+                    <StackPanel>
+                        <TextBlock Text="Новый объект" FontWeight="Bold" FontSize="18" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,15"/>
+                        <TextBlock Text="Название:" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,5"/>
+                        <TextBox Text="{Binding NewObjectName, UpdateSourceTrigger=PropertyChanged}"
+                                 Style="{StaticResource GlassTextBox}" Margin="0,0,0,15"/>
+                        <TextBlock Text="Адрес (опционально):" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,5"/>
+                        <TextBox Text="{Binding NewObjectAddress, UpdateSourceTrigger=PropertyChanged}"
+                                 Style="{StaticResource GlassTextBox}" Margin="0,0,0,20"/>
+
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                            <Button Content="💾 Сохранить" Command="{Binding SaveNewObjectCommand}"
+                                    Style="{StaticResource PrimaryGlassButton}" Margin="0,0,10,0"/>
+                            <Button Content="❌ Отмена" Command="{Binding CancelCreateNewCommand}"
+                                    Style="{StaticResource SecondaryGlassButton}"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Кнопки управления -->
+                <Border Grid.Row="2" Background="{DynamicResource GlassBrush}"
+                        BorderBrush="{DynamicResource GlassBorderBrush}"
+                        BorderThickness="0,1,0,0"
+                        CornerRadius="0,0,12,12"
+                        Padding="16,12">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button Content="➕ Новый объект" Command="{Binding StartCreateNewCommand}"
+                                Style="{StaticResource SecondaryGlassButton}" Margin="0,0,10,0"
+                                Visibility="{Binding IsCreatingNew, Converter={StaticResource InverseBoolToVis}}"/>
+                        <Button Content="▶️ Открыть" Command="{Binding SelectObjectCommand}"
+                                Style="{StaticResource PrimaryGlassButton}" IsDefault="True"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Border>
+    </Border>
+</Window>
