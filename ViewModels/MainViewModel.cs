@@ -53,6 +53,9 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private ProjectDocsViewModel? _projectDocsViewModel;
 
+    [ObservableProperty]
+    private OrganizationsViewModel? _organizationsViewModel;
+
     public MainViewModel(IFileService fileService, IDbContextFactory<AppDbContext> contextFactory)
     {
         _fileService = fileService;
@@ -94,6 +97,7 @@ public partial class MainViewModel : ObservableObject
             SchemasViewModel = new SchemasViewModel(_contextFactory, _fileService, objectId, objectName);
             ProtocolsViewModel = new ProtocolsViewModel(_contextFactory, _fileService, objectId, objectName);
             ProjectDocsViewModel = new ProjectDocsViewModel(_contextFactory, _fileService, objectId, objectName);
+            OrganizationsViewModel = new OrganizationsViewModel(_contextFactory);
 
             // По умолчанию отображаем Акты
             CurrentView = ActsViewModel;
@@ -120,6 +124,7 @@ public partial class MainViewModel : ObservableObject
             3 => SchemasViewModel,
             4 => ProtocolsViewModel,
             5 => ProjectDocsViewModel,
+            6 => OrganizationsViewModel,
             _ => ActsViewModel
         };
     }

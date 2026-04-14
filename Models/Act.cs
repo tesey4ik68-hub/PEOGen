@@ -57,6 +57,17 @@ public class Act
     public int? OtherPerson3Id { get; set; } // Иное лицо 3
     public Employee? OtherPerson3 { get; set; } // Навигационное свойство
 
+    // ==================== ОРГАНИЗАЦИИ (СПРАВОЧНИК) ====================
+
+    public int? CustomerOrganizationId { get; set; }
+    public Organization? CustomerOrganization { get; set; }
+    public int? GenContractorOrganizationId { get; set; }
+    public Organization? GenContractorOrganization { get; set; }
+    public int? ContractorOrganizationId { get; set; }
+    public Organization? ContractorOrganization { get; set; }
+    public int? DesignerOrganizationId { get; set; }
+    public Organization? DesignerOrganization { get; set; }
+
     // ==================== УРОВНИ И СТРУКТУРА (из VBA) ====================
 
     public string Level1 { get; set; } = string.Empty; // Уровень1

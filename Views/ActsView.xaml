@@ -421,6 +421,76 @@
                         </DataGridTemplateColumn.CellEditingTemplate>
                     </DataGridTemplateColumn>
 
+                    <!-- ==================== ОРГАНИЗАЦИИ (ComboBox из справочника) ==================== -->
+
+                    <!-- Заказчик -->
+                    <DataGridTemplateColumn Header="Заказчик" Width="150">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding CustomerOrganization.DisplayName}" VerticalAlignment="Center" Margin="5,0"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                        <DataGridTemplateColumn.CellEditingTemplate>
+                            <DataTemplate>
+                                <ComboBox ItemsSource="{Binding DataContext.Organizations, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                          SelectedValue="{Binding CustomerOrganizationId}"
+                                          DisplayMemberPath="DisplayName"
+                                          SelectedValuePath="Id"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellEditingTemplate>
+                    </DataGridTemplateColumn>
+
+                    <!-- Генподрядчик -->
+                    <DataGridTemplateColumn Header="Генподрядчик" Width="150">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding GenContractorOrganization.DisplayName}" VerticalAlignment="Center" Margin="5,0"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                        <DataGridTemplateColumn.CellEditingTemplate>
+                            <DataTemplate>
+                                <ComboBox ItemsSource="{Binding DataContext.Organizations, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                          SelectedValue="{Binding GenContractorOrganizationId}"
+                                          DisplayMemberPath="DisplayName"
+                                          SelectedValuePath="Id"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellEditingTemplate>
+                    </DataGridTemplateColumn>
+
+                    <!-- Подрядчик -->
+                    <DataGridTemplateColumn Header="Подрядчик (орг.)" Width="150">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding ContractorOrganization.DisplayName}" VerticalAlignment="Center" Margin="5,0"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                        <DataGridTemplateColumn.CellEditingTemplate>
+                            <DataTemplate>
+                                <ComboBox ItemsSource="{Binding DataContext.Organizations, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                          SelectedValue="{Binding ContractorOrganizationId}"
+                                          DisplayMemberPath="DisplayName"
+                                          SelectedValuePath="Id"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellEditingTemplate>
+                    </DataGridTemplateColumn>
+
+                    <!-- Проектировщик -->
+                    <DataGridTemplateColumn Header="Проектировщик (орг.)" Width="170">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding DesignerOrganization.DisplayName}" VerticalAlignment="Center" Margin="5,0"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                        <DataGridTemplateColumn.CellEditingTemplate>
+                            <DataTemplate>
+                                <ComboBox ItemsSource="{Binding DataContext.Organizations, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                          SelectedValue="{Binding DesignerOrganizationId}"
+                                          DisplayMemberPath="DisplayName"
+                                          SelectedValuePath="Id"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellEditingTemplate>
+                    </DataGridTemplateColumn>
+
                     <!-- 33. Приложения -->
                     <DataGridTextColumn Header="Приложения" Width="120"
                                         Binding="{Binding Appendix, UpdateSourceTrigger=PropertyChanged}"/>

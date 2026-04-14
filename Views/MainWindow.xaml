@@ -34,6 +34,9 @@
         <DataTemplate DataType="{x:Type vm:ProjectDocsViewModel}">
             <views:ProjectDocsView/>
         </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:OrganizationsViewModel}">
+            <views:OrganizationsView/>
+        </DataTemplate>
 
         <!-- Стили кнопок управления окном -->
         <Style x:Key="WindowControlButton" TargetType="Button">
@@ -219,6 +222,7 @@
                             <TabItem Header="🗺️ Схемы"/>
                             <TabItem Header="🧪 Протоколы и заключения"/>
                             <TabItem Header="📐 Проекты"/>
+                            <TabItem Header="🏢 Организации"/>
                         </TabControl>
                     </Border>
 

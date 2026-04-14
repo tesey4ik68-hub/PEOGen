@@ -47,6 +47,9 @@ public partial class ActsViewModel : ViewModelBase
     private ObservableCollection<Employee> _employees = new();
 
     [ObservableProperty]
+    private ObservableCollection<Organization> _organizations = new();
+
+    [ObservableProperty]
     private ObservableCollection<Act> _availableActsForLink = new();
 
     public ActsViewModel(
@@ -95,6 +98,10 @@ public partial class ActsViewModel : ViewModelBase
                 .Include(a => a.OtherPerson1)
                 .Include(a => a.OtherPerson2)
                 .Include(a => a.OtherPerson3)
+                .Include(a => a.CustomerOrganization)
+                .Include(a => a.GenContractorOrganization)
+                .Include(a => a.ContractorOrganization)
+                .Include(a => a.DesignerOrganization)
                 .Include(a => a.ActMaterials)
                     .ThenInclude(am => am.Material)
                 .Include(a => a.ActSchemas)
@@ -118,6 +125,20 @@ public partial class ActsViewModel : ViewModelBase
                 .OrderByDescending(a => a.ActDate)
                 .ToListAsync();
 
+            // Загрузка всех организаций (справочник)
+            var organizationsList = await context.Organizations
+                .Where(o => o.IsActive)
+                .OrderBy(o => o.Name)
+                .ToListAsync();
+
+            // Загрузка объекта с дефолтными организациями
+            var constructionObject = await context.Objects
+                .Include(o => o.DefaultCustomerOrganization)
+                .Include(o => o.DefaultGenContractorOrganization)
+                .Include(o => o.DefaultContractorOrganization)
+                .Include(o => o.DefaultDesignerOrganization)
+                .FirstOrDefaultAsync(o => o.Id == _objectId);
+
             // Заполняем коллекции
             Acts.Clear();
             foreach (var act in actsList)
@@ -134,6 +155,10 @@ public partial class ActsViewModel : ViewModelBase
             AvailableActsForLink.Clear();
             foreach (var act in allActs)
                 AvailableActsForLink.Add(act);
+
+            Organizations.Clear();
+            foreach (var org in organizationsList)
+                Organizations.Add(org);
 
             StatusMessage = Acts.Count > 0
                 ? $"Загружено актов: {Acts.Count}, сотрудников: {Employees.Count}"
@@ -178,6 +203,9 @@ public partial class ActsViewModel : ViewModelBase
             CreatedAt = DateTime.Now
         };
 
+        // Подставляем дефолтные организации из объекта
+        await ApplyDefaultOrganizationsAsync(newAct);
+
         // Пересчитываем вычисляемые поля
         ActCalculationService.RecalculateAll(newAct);
 
@@ -187,6 +215,70 @@ public partial class ActsViewModel : ViewModelBase
 
         // Сохраняем в БД для получения ID
         await SaveActToDbAsync(newAct);
+    }
+
+    /// <summary>
+    /// Применить дефолтные организации из объекта к новому акту
+    /// </summary>
+    private async Task ApplyDefaultOrganizationsAsync(Act act)
+    {
+        try
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+
+            var obj = await context.Objects
+                .FirstOrDefaultAsync(o => o.Id == _objectId);
+
+            if (obj == null) return;
+
+            act.CustomerOrganizationId = obj.DefaultCustomerOrganizationId;
+            act.GenContractorOrganizationId = obj.DefaultGenContractorOrganizationId;
+            act.ContractorOrganizationId = obj.DefaultContractorOrganizationId;
+            act.DesignerOrganizationId = obj.DefaultDesignerOrganizationId;
+        }
+        catch
+        {
+            // Игнорируем ошибки — организации останутся null
+        }
+    }
+
+    /// <summary>
+    /// Загрузить акт со всеми навигационными свойствами (для генерации документа)
+    /// </summary>
+    private async Task<Act?> LoadActWithDetailsAsync(int actId)
+    {
+        try
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+
+            return await context.Acts
+                .Include(a => a.ConstructionObject)
+                .Include(a => a.CustomerOrganization)
+                .Include(a => a.GenContractorOrganization)
+                .Include(a => a.ContractorOrganization)
+                .Include(a => a.DesignerOrganization)
+                .Include(a => a.CustomerRep)
+                .Include(a => a.GenContractorRep)
+                .Include(a => a.GenContractorSkRep)
+                .Include(a => a.ContractorRep)
+                .Include(a => a.DesignerRep)
+                .Include(a => a.OtherPerson1)
+                .Include(a => a.OtherPerson2)
+                .Include(a => a.OtherPerson3)
+                .Include(a => a.ActMaterials)
+                    .ThenInclude(am => am.Material)
+                .Include(a => a.ActSchemas)
+                    .ThenInclude(asc => asc.Schema)
+                .Include(a => a.ActProjectDocs)
+                    .ThenInclude(apd => apd.ProjectDoc)
+                .Include(a => a.Protocols)
+                .FirstOrDefaultAsync(a => a.Id == actId);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[ERROR] Ошибка загрузки акта: {ex.Message}");
+            return null;
+        }
     }
 
     /// <summary>
@@ -464,6 +556,30 @@ public partial class ActsViewModel : ViewModelBase
         try
         {
             StatusMessage = "Генерация документа...";
+
+            // Перезагружаем акт из БД с навигационными свойствами организаций
+            var freshAct = await LoadActWithDetailsAsync(act.Id);
+            if (freshAct == null)
+            {
+                MessageBox.Show("Не удалось загрузить данные акта.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                StatusMessage = "Ошибка: акт не найден в БД";
+                return;
+            }
+
+            // Копируем загруженные навигационные свойства в UI-акт
+            act.CustomerOrganization = freshAct.CustomerOrganization;
+            act.GenContractorOrganization = freshAct.GenContractorOrganization;
+            act.ContractorOrganization = freshAct.ContractorOrganization;
+            act.DesignerOrganization = freshAct.DesignerOrganization;
+            act.ConstructionObject = freshAct.ConstructionObject;
+            act.CustomerRep = freshAct.CustomerRep;
+            act.GenContractorRep = freshAct.GenContractorRep;
+            act.GenContractorSkRep = freshAct.GenContractorSkRep;
+            act.ContractorRep = freshAct.ContractorRep;
+            act.DesignerRep = freshAct.DesignerRep;
+            act.OtherPerson1 = freshAct.OtherPerson1;
+            act.OtherPerson2 = freshAct.OtherPerson2;
+            act.OtherPerson3 = freshAct.OtherPerson3;
 
             // Пересчитываем вычисляемые поля перед генерацией
             ActCalculationService.RecalculateAll(act);
