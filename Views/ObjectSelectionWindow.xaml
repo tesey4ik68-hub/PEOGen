@@ -115,8 +115,10 @@
                 <!-- Список объектов -->
                 <Border Grid.Row="1" Background="#50FFFFFF" CornerRadius="0" Padding="20,16"
                         Visibility="{Binding IsCreatingNew, Converter={StaticResource InverseBoolToVis}}">
-                    <ListBox ItemsSource="{Binding Objects}"
+                    <ListBox x:Name="ObjectsListBox"
+                             ItemsSource="{Binding Objects}"
                              SelectedItem="{Binding SelectedObject}"
+                             MouseDoubleClick="ObjectsListBox_MouseDoubleClick"
                              Background="Transparent" BorderThickness="0"
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                         <ListBox.ItemTemplate>
@@ -186,6 +188,10 @@
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                         <Button Content="➕ Новый объект" Command="{Binding StartCreateNewCommand}"
                                 Style="{StaticResource SecondaryGlassButton}" Margin="0,0,10,0"
+                                Visibility="{Binding IsCreatingNew, Converter={StaticResource InverseBoolToVis}}"/>
+                        <Button Content="✏️ Редактировать" Command="{Binding EditObjectCommand}"
+                                Style="{StaticResource SecondaryGlassButton}" Margin="0,0,10,0"
+                                IsEnabled="{Binding SelectedObject, TargetNullValue=False}"
                                 Visibility="{Binding IsCreatingNew, Converter={StaticResource InverseBoolToVis}}"/>
                         <Button Content="▶️ Открыть" Command="{Binding SelectObjectCommand}"
                                 Style="{StaticResource PrimaryGlassButton}" IsDefault="True"/>

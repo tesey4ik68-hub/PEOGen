@@ -61,4 +61,34 @@ public class Employee
     public string OrderFileName => string.IsNullOrEmpty(OrderFilePath)
         ? string.Empty
         : System.IO.Path.GetFileName(OrderFilePath);
+
+    // ==================== TEXT-BASED DATE PROPERTIES (для TextBox + Calendar) ====================
+
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public string OrderDateText
+    {
+        get => OrderDate?.ToString("dd.MM.yyyy") ?? "";
+        set { /* Только для биндинга, реальное значение устанавливается через календарь */ }
+    }
+
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public string NrsDateText
+    {
+        get => NrsDate?.ToString("dd.MM.yyyy") ?? "";
+        set { /* Только для биндинга */ }
+    }
+
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public string WorkStartDateText
+    {
+        get => WorkStartDate?.ToString("dd.MM.yyyy") ?? "";
+        set { /* Только для биндинга */ }
+    }
+
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public string WorkEndDateText
+    {
+        get => WorkEndDate?.ToString("dd.MM.yyyy") ?? "";
+        set { /* Только для биндинга */ }
+    }
 }

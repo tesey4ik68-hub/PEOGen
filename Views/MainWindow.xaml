@@ -139,12 +139,11 @@
                         </StackPanel>
 
                         <!-- Текущий объект -->
-                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center"
-                                    Visibility="{Binding CurrentObject, Converter={StaticResource BoolToVisibility}}">
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center">
                             <TextBlock Text="📋 " FontSize="14" VerticalAlignment="Center"/>
                             <StackPanel>
-                                <TextBlock Text="{Binding CurrentObject.Name}" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
-                                <TextBlock Text="{Binding CurrentObject.Address}" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <TextBlock Text="{Binding CurrentObject.Name, FallbackValue='Объект не выбран'}" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                <TextBlock Text="{Binding CurrentObject.Address, FallbackValue=''}" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}"/>
                             </StackPanel>
                         </StackPanel>
 

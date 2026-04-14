@@ -557,47 +557,38 @@ public partial class ActsViewModel : ViewModelBase
         {
             StatusMessage = "Генерация документа...";
 
-            // Перезагружаем акт из БД с навигационными свойствами организаций
+            // 1. Сначала пересчитываем вычисляемые поля и сохраняем ТЕКУЩИЕ значения UI-акта в БД
+            // чтобы новые OrganizationId / RepId и прочие поля точно попали в freshAct.
+            ActCalculationService.RecalculateAll(act);
+            await SaveActToDbAsync(act);
+
+            // 2. Загружаем "чистый" акт из БД со всеми навигационными свойствами
             var freshAct = await LoadActWithDetailsAsync(act.Id);
             if (freshAct == null)
             {
-                MessageBox.Show("Не удалось загрузить данные акта.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show(
+                    "Не удалось загрузить данные акта из БД перед генерацией.",
+                    "Ошибка",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+
                 StatusMessage = "Ошибка: акт не найден в БД";
                 return;
             }
 
-            // Копируем загруженные навигационные свойства в UI-акт
-            act.CustomerOrganization = freshAct.CustomerOrganization;
-            act.GenContractorOrganization = freshAct.GenContractorOrganization;
-            act.ContractorOrganization = freshAct.ContractorOrganization;
-            act.DesignerOrganization = freshAct.DesignerOrganization;
-            act.ConstructionObject = freshAct.ConstructionObject;
-            act.CustomerRep = freshAct.CustomerRep;
-            act.GenContractorRep = freshAct.GenContractorRep;
-            act.GenContractorSkRep = freshAct.GenContractorSkRep;
-            act.ContractorRep = freshAct.ContractorRep;
-            act.DesignerRep = freshAct.DesignerRep;
-            act.OtherPerson1 = freshAct.OtherPerson1;
-            act.OtherPerson2 = freshAct.OtherPerson2;
-            act.OtherPerson3 = freshAct.OtherPerson3;
+            // 3. Генерируем документ ТОЛЬКО по freshAct, не смешивая его с UI-графом
+            var filePath = await _wordService.GenerateActAsync(freshAct);
 
-            // Пересчитываем вычисляемые поля перед генерацией
-            ActCalculationService.RecalculateAll(act);
-
-            // Вызываем сервис
-            var filePath = await _wordService.GenerateActAsync(act);
-
-            // Обновляем статус в UI
+            // 4. Обновляем только UI-поля статуса
             act.Status = "✅ Сгенерирован";
             act.GeneratedFilePath = filePath;
             act.UpdatedAt = DateTime.Now;
 
-            // Сохраняем изменения пути в БД
+            // 5. Сохраняем только scalar/FK-поля без Attach графа
             await SaveActToDbAsync(act);
 
             StatusMessage = $"Документ создан: {Path.GetFileName(filePath)}";
 
-            // Открываем папку с выделенным файлом
             Process.Start("explorer.exe", $"/select,\"{filePath}\"");
         }
         catch (FileNotFoundException ex)
@@ -605,7 +596,10 @@ public partial class ActsViewModel : ViewModelBase
             MessageBox.Show(
                 $"Шаблон не найден:\n{ex.Message}\n\n" +
                 "Убедитесь, что файл шаблона присутствует в папке Templates.",
-                "Ошибка генерации", MessageBoxButton.OK, MessageBoxImage.Warning);
+                "Ошибка генерации",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+
             act.Status = "❌ Ошибка";
             StatusMessage = "Ошибка генерации: шаблон не найден";
         }
@@ -613,7 +607,10 @@ public partial class ActsViewModel : ViewModelBase
         {
             MessageBox.Show(
                 $"Ошибка генерации документа:\n\n{ex.Message}",
-                "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                "Ошибка",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+
             act.Status = "❌ Ошибка";
             StatusMessage = $"Ошибка генерации: {ex.Message}";
         }
@@ -759,20 +756,32 @@ public partial class ActsViewModel : ViewModelBase
         {
             await using var context = await _contextFactory.CreateDbContextAsync();
 
-            // Обновляем метаданные
             act.UpdatedAt = DateTime.Now;
 
             if (act.Id == 0)
             {
-                // Новый акт
+                // Новый акт — можно добавить напрямую, он еще без БД-id
                 context.Acts.Add(act);
+                await context.SaveChangesAsync();
+                return;
             }
-            else
+
+            // Для существующего акта НЕ attach'им UI-граф целиком.
+            // Загружаем сущность из БД и обновляем только scalar/FK-поля.
+            var dbAct = await context.Acts.FirstOrDefaultAsync(a => a.Id == act.Id);
+            if (dbAct == null)
             {
-                // Существующий акт — прикрепляем и помечаем как изменённый
-                context.Attach(act);
-                context.Entry(act).State = EntityState.Modified;
+                MessageBox.Show(
+                    $"Акт с Id={act.Id} не найден в БД.",
+                    "Ошибка",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+
+                StatusMessage = $"Ошибка сохранения: акт {act.Id} не найден";
+                return;
             }
+
+            CopyEditableFields(act, dbAct);
 
             await context.SaveChangesAsync();
         }
@@ -786,5 +795,87 @@ public partial class ActsViewModel : ViewModelBase
 
             StatusMessage = $"Ошибка сохранения: {ex.Message}";
         }
+    }
+
+    private static void CopyEditableFields(Act source, Act target)
+    {
+        // ==================== ОСНОВНЫЕ ПОЛЯ ====================
+        target.ConstructionObjectId = source.ConstructionObjectId;
+        target.ActNumber = source.ActNumber;
+        target.Type = source.Type;
+        target.WorkName = source.WorkName;
+        target.WorkDescription = source.WorkDescription;
+        target.Interval = source.Interval;
+        target.IntervalType = source.IntervalType;
+
+        // ==================== ДАТЫ ====================
+        target.WorkStartDate = source.WorkStartDate;
+        target.WorkEndDate = source.WorkEndDate;
+        target.ActDate = source.ActDate;
+        target.ProtocolDate = source.ProtocolDate;
+
+        // ==================== СВЯЗИ С ДРУГИМИ АКТАМИ ====================
+        target.RelatedActId = source.RelatedActId;
+        target.RelatedAookId = source.RelatedAookId;
+
+        // ==================== ПОДПИСАНТЫ ====================
+        target.CustomerRepId = source.CustomerRepId;
+        target.GenContractorRepId = source.GenContractorRepId;
+        target.GenContractorSkRepId = source.GenContractorSkRepId;
+        target.ContractorRepId = source.ContractorRepId;
+        target.AuthorSupervisionId = source.AuthorSupervisionId;
+        target.OtherPerson1Id = source.OtherPerson1Id;
+        target.OtherPerson2Id = source.OtherPerson2Id;
+        target.OtherPerson3Id = source.OtherPerson3Id;
+
+        // ==================== ОРГАНИЗАЦИИ ====================
+        target.CustomerOrganizationId = source.CustomerOrganizationId;
+        target.GenContractorOrganizationId = source.GenContractorOrganizationId;
+        target.ContractorOrganizationId = source.ContractorOrganizationId;
+        target.DesignerOrganizationId = source.DesignerOrganizationId;
+
+        // ==================== УРОВНИ И СТРУКТУРА ====================
+        target.Level1 = source.Level1;
+        target.Level2 = source.Level2;
+        target.Level3 = source.Level3;
+        target.Mark = source.Mark;
+        target.InAxes = source.InAxes;
+        target.Volume = source.Volume;
+        target.UnitOfMeasure = source.UnitOfMeasure;
+
+        // ==================== ДОП. ПОЛЯ ====================
+        target.WorkVolume = source.WorkVolume;
+        target.DrawingNumber = source.DrawingNumber;
+        target.ProjectDocumentation = source.ProjectDocumentation;
+        target.StandardReference = source.StandardReference;
+        target.GeoCondition = source.GeoCondition;
+        target.WeatherCondition = source.WeatherCondition;
+        target.EquipmentUsed = source.EquipmentUsed;
+        target.MaterialsUsed = source.MaterialsUsed;
+        target.QualityControl = source.QualityControl;
+        target.SafetyMeasures = source.SafetyMeasures;
+        target.AdditionalInfo = source.AdditionalInfo;
+        target.Remarks = source.Remarks;
+
+        // ==================== БЛОК АООК ====================
+        target.UsageAsIntended = source.UsageAsIntended;
+        target.LoadPercentage = source.LoadPercentage;
+        target.FullLoadConditions = source.FullLoadConditions;
+
+        // ==================== ПРИЛОЖЕНИЯ И ЭКЗЕМПЛЯРЫ ====================
+        target.Appendix = source.Appendix;
+        target.CopiesCount = source.CopiesCount;
+
+        // ==================== ПОСЛЕДУЮЩИЕ РАБОТЫ ====================
+        target.SubsequentWork = source.SubsequentWork;
+
+        // ==================== СТАТУС ====================
+        target.Status = source.Status;
+        target.GeneratedFilePath = source.GeneratedFilePath;
+
+        // ==================== МЕТАДАННЫЕ ====================
+        target.CreatedAt = source.CreatedAt;
+        target.CreatedBy = source.CreatedBy;
+        target.UpdatedAt = source.UpdatedAt ?? DateTime.Now;
     }
 }

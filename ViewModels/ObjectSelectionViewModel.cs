@@ -9,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 using AGenerator.Database;
 using AGenerator.Models;
 using AGenerator.Services;
+using AGenerator.Views;
 
 namespace AGenerator.ViewModels
 {
@@ -144,5 +145,38 @@ namespace AGenerator.ViewModels
         }
 
         public event EventHandler<ConstructionObject>? RequestSelect;
+
+        [RelayCommand]
+        private async Task EditObjectAsync()
+        {
+            if (SelectedObject == null) return;
+
+            try
+            {
+                var editVm = new ObjectEditViewModel(_contextFactory, SelectedObject);
+
+                var editWindow = new ObjectEditWindow
+                {
+                    DataContext = editVm,
+                    WindowStartupLocation = WindowStartupLocation.CenterScreen
+                };
+
+                // Показываем модально и обновляем список после закрытия
+                var result = editWindow.ShowDialog();
+
+                if (result == true)
+                {
+                    // Обновляем список объектов, чтобы отобразить изменения
+                    await LoadObjectsAsync();
+
+                    // Восстанавливаем выбор отредактированного объекта
+                    SelectedObject = Objects.FirstOrDefault(o => o.Id == editVm.EditingObject?.Id);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка редактирования: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
     }
 }

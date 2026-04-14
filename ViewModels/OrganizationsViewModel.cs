@@ -99,8 +99,11 @@ public partial class OrganizationsViewModel : ViewModelBase
     {
         if (SelectedOrganization == null) return;
 
+        var orgName = SelectedOrganization.Name;
+        var orgId = SelectedOrganization.Id;
+
         var result = MessageBox.Show(
-            $"Удалить организацию \"{SelectedOrganization.Name}\"?\n\n" +
+            $"Удалить организацию \"{orgName}\"?\n\n" +
             "Это действие нельзя отменить.",
             "Подтверждение удаления",
             MessageBoxButton.YesNo,
@@ -108,21 +111,29 @@ public partial class OrganizationsViewModel : ViewModelBase
 
         if (result != MessageBoxResult.Yes) return;
 
+        // Сразу удаляем из UI-коллекции
+        Organizations.Remove(SelectedOrganization);
+        SelectedOrganization = null;
+
         try
         {
             await using var context = await _contextFactory.CreateDbContextAsync();
 
-            var orgToDelete = await context.Organizations.FindAsync(SelectedOrganization.Id);
-            if (orgToDelete != null)
+            if (orgId > 0)
             {
-                context.Organizations.Remove(orgToDelete);
-                await context.SaveChangesAsync();
-
-                Organizations.Remove(SelectedOrganization);
-                SelectedOrganization = null;
-
-                StatusMessage = "Организация удалена";
+                // Существующая организация — удаляем из БД
+                var orgToDelete = await context.Organizations.FindAsync(orgId);
+                if (orgToDelete != null)
+                {
+                    context.Organizations.Remove(orgToDelete);
+                    await context.SaveChangesAsync();
+                }
             }
+            // Для новой (Id == 0) — просто не сохраняем, она уже удалена из UI
+
+            StatusMessage = Organizations.Count > 0
+                ? $"Организация удалена. Осталось: {Organizations.Count}"
+                : "Нет организаций. Нажмите «➕ Добавить» для создания.";
         }
         catch (Exception ex)
         {

@@ -1,10 +1,12 @@
 ﻿using System;
 using System.Collections.ObjectModel;
 using System.Threading.Tasks;
+using System.Windows;
 using System.Windows.Input;
 using AGenerator.Database;
 using AGenerator.Models;
 using AGenerator.Services;
+using AGenerator.Views;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.EntityFrameworkCore;
@@ -165,6 +167,38 @@ public partial class MainViewModel : ObservableObject
         finally
         {
             IsLoading = false;
+        }
+    }
+
+    /// <summary>
+    /// Открыть окно редактирования объекта
+    /// </summary>
+    [RelayCommand]
+    private async Task EditObjectAsync()
+    {
+        if (CurrentObject == null) return;
+
+        try
+        {
+            var editVm = new ObjectEditViewModel(_contextFactory, CurrentObject);
+
+            var editWindow = new ObjectEditWindow
+            {
+                DataContext = editVm,
+                Owner = Application.Current.MainWindow
+            };
+
+            // Подписываемся на закрытие — если объект был сохранён, обновляем UI
+            editWindow.ShowDialog();
+
+            // Обновляем заголовок окна если имя изменилось
+            WindowTitle = $"P-генератор — {CurrentObject.Name}";
+            StatusMessage = $"Объект обновлён: {CurrentObject.Name}";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Ошибка редактирования: {ex.Message}";
+            System.Diagnostics.Debug.WriteLine($"[ERROR] Ошибка редактирования объекта: {ex}");
         }
     }
 }

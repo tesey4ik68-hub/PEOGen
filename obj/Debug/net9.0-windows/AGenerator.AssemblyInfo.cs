@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("AGenerator")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+852d87b22892997a0b4e9a76010a99d889a76588")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+6232edbbd44e4fba493462e7446d22faa5eb84f5")]
 [assembly: System.Reflection.AssemblyProductAttribute("AGenerator")]
 [assembly: System.Reflection.AssemblyTitleAttribute("AGenerator")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

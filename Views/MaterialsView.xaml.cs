@@ -67,6 +67,20 @@ public partial class MaterialsView : UserControl
         }
     }
 
+    private void BtnPickDeliveryDate_Click(object sender, RoutedEventArgs e)
+    {
+        DeliveryDateCalendarPopup.IsOpen = true;
+    }
+
+    private void DeliveryDateCalendar_SelectedDatesChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (DeliveryDateCalendar.SelectedDate.HasValue && DataContext is MaterialsViewModel vm)
+        {
+            vm.EditingMaterial.DeliveryDate = DeliveryDateCalendar.SelectedDate.Value;
+            DeliveryDateCalendarPopup.IsOpen = false;
+        }
+    }
+
     private void CertificateDropZone_DragOver(object sender, DragEventArgs e)
     {
         e.Effects = e.Data.GetDataPresent(DataFormats.FileDrop) ? DragDropEffects.Copy : DragDropEffects.None;

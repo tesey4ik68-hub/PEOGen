@@ -1,63 +1,43 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections;
 using System.Windows;
-using System.Windows.Controls;
+using System.Windows.Input;
+using AGenerator.ViewModels;
 
-namespace AGenerator.Views
+namespace AGenerator.Views;
+
+public partial class MultiSelectWindow : Window
 {
-    /// <summary>
-    /// Универсальное окно множественного выбора элементов.
-    /// DisplayMemberPath устанавливается из кода для корректного отображения.
-    /// </summary>
-    public partial class MultiSelectWindow : Window
+    public IList SelectedItemsResult { get; private set; } = new ArrayList();
+
+    public MultiSelectWindow(string displayProperty)
     {
-        /// <summary>
-        /// Результат выбора — список выбранных элементов.
-        /// </summary>
-        public IList<object> SelectedItemsResult { get; private set; } = new List<object>();
+        InitializeComponent();
+    }
 
-        /// <summary>
-        /// Создать окно множественного выбора.
-        /// </summary>
-        /// <param name="displayMemberPath">Имя свойства для отображения в ListBox (например, "Name", "FullName")</param>
-        public MultiSelectWindow(string displayMemberPath = "Name")
+    private void Window_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ChangedButton == MouseButton.Left)
+            DragMove();
+    }
+
+    private void Minimize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
+
+    private void Close_Click(object sender, RoutedEventArgs e) => Close();
+
+    private void Ok_Click(object sender, RoutedEventArgs e)
+    {
+        // DataContext — это MultiSelectViewModel<T>, у которого есть свойство SelectedItemsResult
+        var dc = DataContext;
+        var prop = dc?.GetType().GetProperty("SelectedItemsResult");
+        if (prop != null)
         {
-            InitializeComponent();
-
-            // Используем DisplayText из DisplayItem<T> для отображения
-            var binding = new System.Windows.Data.Binding("DisplayText");
-            AvailableListBox.SetBinding(ListBox.DisplayMemberPathProperty, binding);
-            SelectedListBox.SetBinding(ListBox.DisplayMemberPathProperty, binding);
+            SelectedItemsResult = (System.Collections.IList)prop.GetValue(dc)!;
         }
+        DialogResult = true;
+    }
 
-        private void Ok_Click(object sender, RoutedEventArgs e)
-        {
-            if (DataContext != null)
-            {
-                // Получаем SelectedItems через рефлексию (универсальный подход)
-                var vmType = DataContext.GetType();
-                var selectedItemsProp = vmType.GetProperty("SelectedItems");
-                if (selectedItemsProp != null)
-                {
-                    var selectedItems = selectedItemsProp.GetValue(DataContext) as System.Collections.IEnumerable;
-                    if (selectedItems != null)
-                    {
-                        var result = new List<object>();
-                        foreach (var item in selectedItems)
-                            result.Add(item);
-                        SelectedItemsResult = result;
-                    }
-                }
-            }
-
-            DialogResult = true;
-            Close();
-        }
-
-        private void Cancel_Click(object sender, RoutedEventArgs e)
-        {
-            DialogResult = false;
-            Close();
-        }
+    private void Cancel_Click(object sender, RoutedEventArgs e)
+    {
+        DialogResult = false;
     }
 }

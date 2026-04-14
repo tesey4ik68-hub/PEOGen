@@ -53,6 +53,13 @@ public class Material
 
     public DateTime? DeliveryDate { get; set; }
 
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public string DeliveryDateText
+    {
+        get => DeliveryDate?.ToString("dd.MM.yyyy") ?? "";
+        set { /* Только для биндинга */ }
+    }
+
     // Файл сертификата
     public string CertificateFilePath { get; set; } = string.Empty;
 

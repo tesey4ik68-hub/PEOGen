@@ -40,6 +40,20 @@ public partial class ProtocolsView : UserControl
             vm.EditSelectedProtocolCommand.Execute(null);
     }
 
+    private void BtnPickProtocolDate_Click(object sender, RoutedEventArgs e)
+    {
+        ProtocolDateCalendarPopup.IsOpen = true;
+    }
+
+    private void ProtocolDateCalendar_SelectedDatesChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (ProtocolDateCalendar.SelectedDate.HasValue && DataContext is ProtocolsViewModel vm)
+        {
+            vm.EditingProtocol.Date = ProtocolDateCalendar.SelectedDate.Value;
+            ProtocolDateCalendarPopup.IsOpen = false;
+        }
+    }
+
     // ==================== DRAG-AND-DROP ДЛЯ ФАЙЛА ПРОТОКОЛА ====================
 
     private void ProtocolDropZone_DragOver(object sender, DragEventArgs e)

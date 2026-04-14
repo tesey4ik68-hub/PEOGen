@@ -40,6 +40,20 @@ public partial class SchemasView : UserControl
             vm.EditSelectedSchemaCommand.Execute(null);
     }
 
+    private void BtnPickSchemaDate_Click(object sender, RoutedEventArgs e)
+    {
+        SchemaDateCalendarPopup.IsOpen = true;
+    }
+
+    private void SchemaDateCalendar_SelectedDatesChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (SchemaDateCalendar.SelectedDate.HasValue && DataContext is SchemasViewModel vm)
+        {
+            vm.EditingSchema.Date = SchemaDateCalendar.SelectedDate.Value;
+            SchemaDateCalendarPopup.IsOpen = false;
+        }
+    }
+
     // ==================== DRAG-AND-DROP ДЛЯ ФАЙЛА СХЕМЫ ====================
 
     private void SchemaDropZone_DragOver(object sender, DragEventArgs e)

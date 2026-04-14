@@ -129,4 +129,9 @@ public partial class MultiSelectViewModel<T> : ObservableObject where T : class
     {
         SelectedItems.Clear();
     }
+
+    /// <summary>
+    /// Возвращает список выбранных элементов (без обёртки DisplayItem)
+    /// </summary>
+    public IList SelectedItemsResult => SelectedItems.Select(d => d.Item).ToList();
 }

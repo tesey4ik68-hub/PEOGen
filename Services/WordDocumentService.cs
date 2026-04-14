@@ -131,11 +131,18 @@ public class WordDocumentService
                 }
             }
 
-            // Специфическая очистка для АОСР
-            if (act.Type == "АОСР")
-            {
-                RemoveEmptyBlocksForAOSR(body, act);
-            }
+            // Специфическая очистка для АОСР ВРЕМЕННО ОТКЛЮЧЕНА.
+            // Причина: в текущем шаблоне верхний блок с объектом и реквизитами
+            // находится в общей таблице, и удаление ancestor table по одной пустой
+            // закладке сносит всю первую страницу/первый крупный блок документа.
+            //
+            // После стабилизации шаблона здесь нужно будет реализовать более точечную
+            // очистку по строкам/абзацам, а не удаление всей таблицы.
+            //
+            // if (act.Type == "АОСР")
+            // {
+            //     RemoveEmptyBlocksForAOSR(body, act);
+            // }
 
             // Специфическая очистка для АООК/АРООКС
             if (act.Type is "АООК" or "АРООКС")
@@ -1082,48 +1089,18 @@ public class WordDocumentService
     /// Удаляет таблицы, содержащие закладки, если соответствующие поля акта пусты.
     /// Безопасный способ: по bookmark → таблица → удаление.
     /// </summary>
+    /// <summary>
+    /// Очистка пустых блоков для АОСР временно отключена.
+    /// Старый вариант удалял целую ancestor-table по одной пустой закладке,
+    /// из-за чего мог исчезать весь верхний блок документа с объектом и реквизитами.
+    /// </summary>
     private static void RemoveEmptyBlocksForAOSR(Body body, Act act)
     {
-        // Если нет проектировщика — убираем блок с реквизитами проектировщика
-        if (act.DesignerRep == null || string.IsNullOrWhiteSpace(act.DesignerRep.FullName))
-        {
-            RemoveTableByBookmark(body, "реквизиты_проектировщика");
-        }
-
-        // Если нет подрядчика — убираем блок с реквизитами подрядчика
-        if (act.ContractorRep == null || string.IsNullOrWhiteSpace(act.ContractorRep.FullName))
-        {
-            RemoveTableByBookmark(body, "ФИО_Пд");
-        }
-
-        // Если нет авторского надзора — убираем блок
-        if (act.DesignerRep == null)
-        {
-            RemoveTableByBookmark(body, "ФИО_Пр");
-        }
-
-        // Иные лица — убираем пустые блоки
-        if (act.OtherPerson1 == null || string.IsNullOrWhiteSpace(act.OtherPerson1.FullName))
-            RemoveTableByBookmark(body, "ФИО_И1");
-
-        if (act.OtherPerson2 == null || string.IsNullOrWhiteSpace(act.OtherPerson2.FullName))
-            RemoveTableByBookmark(body, "ФИО_И2");
-
-        if (act.OtherPerson3 == null || string.IsNullOrWhiteSpace(act.OtherPerson3.FullName))
-            RemoveTableByBookmark(body, "ФИО_И3");
-
-        // Если нет последующих работ — убираем блок
-        if (string.IsNullOrWhiteSpace(act.SubsequentWork))
-            RemoveTableByBookmark(body, "Наименование_последующих_работ");
-
-        // Если нет доп. сведений — убираем блок
-        if (string.IsNullOrWhiteSpace(act.AdditionalInfo))
-            RemoveTableByBookmark(body, "Доп_сведения");
-
-        // Если нет приложений вручную — убираем блок
-        if (string.IsNullOrWhiteSpace(act.Appendix))
-            RemoveTableByBookmark(body, "Приложения_вручную");
+        // Временно ничего не удаляем.
+        // Для АОСР нужна адресная очистка по строкам/абзацам шаблона,
+        // а не удаление всей таблицы.
     }
+
 
     /// <summary>
     /// Найти таблицу, содержащую закладку, и удалить её.

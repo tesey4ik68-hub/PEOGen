@@ -33,6 +33,13 @@ public class Protocol
 
     public DateTime Date { get; set; }
 
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public string DateText
+    {
+        get => Date.ToString("dd.MM.yyyy");
+        set { /* Только для биндинга */ }
+    }
+
     public string Type { get; set; } = string.Empty; // Тип протокола/испытаний
 
     public string Laboratory { get; set; } = string.Empty; // Лаборатория

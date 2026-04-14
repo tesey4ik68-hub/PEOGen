@@ -75,4 +75,34 @@ public partial class EmployeesView : UserControl
             vm.HandleOrderFileDrop(files);
         }
     }
+
+    // ==================== КАЛЕНДАРИ ДЛЯ ДАТ ====================
+
+    private void BtnPickOrderDate_Click(object sender, RoutedEventArgs e)
+    {
+        OrderDateCalendarPopup.IsOpen = true;
+    }
+
+    private void OrderDateCalendar_SelectedDatesChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (OrderDateCalendar.SelectedDate.HasValue && DataContext is EmployeesViewModel vm)
+        {
+            vm.EditingEmployee.OrderDate = OrderDateCalendar.SelectedDate.Value;
+            OrderDateCalendarPopup.IsOpen = false;
+        }
+    }
+
+    private void BtnPickNrsDate_Click(object sender, RoutedEventArgs e)
+    {
+        NrsDateCalendarPopup.IsOpen = true;
+    }
+
+    private void NrsDateCalendar_SelectedDatesChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (NrsDateCalendar.SelectedDate.HasValue && DataContext is EmployeesViewModel vm)
+        {
+            vm.EditingEmployee.NrsDate = NrsDateCalendar.SelectedDate.Value;
+            NrsDateCalendarPopup.IsOpen = false;
+        }
+    }
 }

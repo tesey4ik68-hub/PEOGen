@@ -151,8 +151,9 @@
                 Background="#CC000000"
                 Visibility="{Binding IsEditing, Converter={StaticResource BoolToVisibility}}"
                 Panel.ZIndex="100">
-            <Border Background="#F0FFFFFF"
+            <Border Background="{DynamicResource MainGradient}"
                     BorderBrush="{DynamicResource GlassBorderBrush}"
+                    BorderThickness="1"
                     Width="620"
                     MaxHeight="750"
                     VerticalAlignment="Center"
@@ -170,23 +171,33 @@
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0"
-                                       Text="Сотрудник"
-                                       FontSize="20"
-                                       FontWeight="Bold"
-                                       Foreground="{DynamicResource TextPrimaryBrush}"
-                                       VerticalAlignment="Center"/>
-                            <Button Grid.Column="1"
-                                    Content="✕"
-                                    Command="{Binding CancelEditCommand}"
-                                    Width="32" Height="32"
-                                    FontSize="16"
-                                    HorizontalAlignment="Right"
-                                    VerticalAlignment="Top"
-                                    Background="Transparent"
-                                    BorderThickness="0"
-                                    Cursor="Hand"
-                                    ToolTip="Закрыть"/>
+                            <TextBlock Grid.Column="0" Text="👤 Сотрудник" FontSize="18" FontWeight="Bold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                            <Button Grid.Column="1" Content="✕" Command="{Binding CancelEditCommand}"
+                                    Width="32" Height="32" FontSize="14"
+                                    Background="Transparent" BorderThickness="0"
+                                    Cursor="Hand" Foreground="{DynamicResource TextPrimaryBrush}"
+                                    ToolTip="Закрыть">
+                                <Button.Style>
+                                    <Style TargetType="Button">
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border Background="{TemplateBinding Background}" CornerRadius="4">
+                                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                    </Border>
+                                                    <ControlTemplate.Triggers>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter Property="Background" Value="#E81123"/>
+                                                            <Setter Property="Foreground" Value="White"/>
+                                                        </Trigger>
+                                                    </ControlTemplate.Triggers>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
                         </Grid>
 
                         <TextBlock Text="Роль:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
@@ -219,65 +230,105 @@
                         <!-- Приказ -->
                         <Grid Margin="0,0,0,12">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="100"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-
-                            <StackPanel Grid.Column="0" Margin="0,0,5,0">
-                                <TextBlock Text="Приказ №:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
-                                <TextBox Text="{Binding EditingEmployee.OrderNumber, UpdateSourceTrigger=PropertyChanged}"
-                                         Style="{StaticResource GlassTextBox}"
-                                         Padding="5"/>
-                            </StackPanel>
-
-                            <StackPanel Grid.Column="1" Margin="5,0,0,0">
-                                <TextBlock Text="Дата приказа:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
-                                <DatePicker SelectedDate="{Binding EditingEmployee.OrderDate}"
-                                            HorizontalAlignment="Stretch"/>
-                            </StackPanel>
+                            <TextBlock Grid.Column="0" Text="№ приказа:" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"
+                                       VerticalAlignment="Center" Margin="0,0,5,0"/>
+                            <TextBox Grid.Column="1" Text="{Binding EditingEmployee.OrderNumber, UpdateSourceTrigger=PropertyChanged}"
+                                     Style="{StaticResource GlassTextBox}"
+                                     Padding="5" Margin="0,0,10,0"/>
+                            <TextBlock Grid.Column="2" Text="Дата:" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"
+                                       VerticalAlignment="Center" Margin="0,0,5,0"/>
+                            <TextBox Grid.Column="3" x:Name="OrderDateTextBox"
+                                     Text="{Binding EditingEmployee.OrderDateText, UpdateSourceTrigger=PropertyChanged}"
+                                     Style="{StaticResource GlassTextBox}"
+                                     Padding="5" Width="100" Margin="0,0,5,0"
+                                     ToolTip="Введите дату: 13.08.2015, 08.2015 или 2015"/>
+                            <Button Grid.Column="4" x:Name="BtnPickOrderDate" Content="📅" Padding="6,4"
+                                    Style="{StaticResource GlassButton}"
+                                    Click="BtnPickOrderDate_Click" ToolTip="Выбрать дату"/>
+                            <!-- Popup с календарём -->
+                            <Popup x:Name="OrderDateCalendarPopup"
+                                   PlacementTarget="{Binding ElementName=BtnPickOrderDate}"
+                                   Placement="Bottom" StaysOpen="False"
+                                   AllowsTransparency="True" PopupAnimation="Fade">
+                                <Border Background="#F0FFFFFF" BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="5">
+                                    <Calendar x:Name="OrderDateCalendar" SelectedDatesChanged="OrderDateCalendar_SelectedDatesChanged"
+                                              Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                </Border>
+                            </Popup>
                         </Grid>
 
                         <!-- НРС -->
                         <TextBlock Text="НРС (Национальный реестр специалистов):" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
                         <Grid Margin="0,0,0,12">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="100"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-
-                            <StackPanel Grid.Column="0" Margin="0,0,5,0">
-                                <TextBlock Text="Идентификационный номер:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
-                                <TextBox Text="{Binding EditingEmployee.NrsNumber, UpdateSourceTrigger=PropertyChanged}"
-                                         Style="{StaticResource GlassTextBox}"
-                                         Padding="5"/>
-                            </StackPanel>
-
-                            <StackPanel Grid.Column="1" Margin="5,0,0,0">
-                                <TextBlock Text="Дата НРС:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
-                                <DatePicker SelectedDate="{Binding EditingEmployee.NrsDate}"
-                                            HorizontalAlignment="Stretch"/>
-                            </StackPanel>
+                            <TextBlock Grid.Column="0" Text="№ НРС:" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"
+                                       VerticalAlignment="Center" Margin="0,0,5,0"/>
+                            <TextBox Grid.Column="1" Text="{Binding EditingEmployee.NrsNumber, UpdateSourceTrigger=PropertyChanged}"
+                                     Style="{StaticResource GlassTextBox}"
+                                     Padding="5" Margin="0,0,10,0"/>
+                            <TextBlock Grid.Column="2" Text="Дата:" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"
+                                       VerticalAlignment="Center" Margin="0,0,5,0"/>
+                            <TextBox Grid.Column="3" x:Name="NrsDateTextBox"
+                                     Text="{Binding EditingEmployee.NrsDateText, UpdateSourceTrigger=PropertyChanged}"
+                                     Style="{StaticResource GlassTextBox}"
+                                     Padding="5" Width="100" Margin="0,0,5,0"
+                                     ToolTip="Введите дату: 13.08.2015, 08.2015 или 2015"/>
+                            <Button Grid.Column="4" x:Name="BtnPickNrsDate" Content="📅" Padding="6,4"
+                                    Style="{StaticResource GlassButton}"
+                                    Click="BtnPickNrsDate_Click" ToolTip="Выбрать дату"/>
+                            <!-- Popup с календарём -->
+                            <Popup x:Name="NrsDateCalendarPopup"
+                                   PlacementTarget="{Binding ElementName=BtnPickNrsDate}"
+                                   Placement="Bottom" StaysOpen="False"
+                                   AllowsTransparency="True" PopupAnimation="Fade">
+                                <Border Background="#F0FFFFFF" BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="5">
+                                    <Calendar x:Name="NrsDateCalendar" SelectedDatesChanged="NrsDateCalendar_SelectedDatesChanged"
+                                              Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                </Border>
+                            </Popup>
                         </Grid>
 
                         <!-- Даты работы -->
                         <TextBlock Text="Период работы:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
                         <Grid Margin="0,0,0,12">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="120"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="120"/>
                             </Grid.ColumnDefinitions>
-
-                            <StackPanel Grid.Column="0" Margin="0,0,5,0">
-                                <TextBlock Text="Дата начала:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
-                                <DatePicker SelectedDate="{Binding EditingEmployee.WorkStartDate}"
-                                            HorizontalAlignment="Stretch"/>
-                            </StackPanel>
-
-                            <StackPanel Grid.Column="1" Margin="5,0,0,0">
-                                <TextBlock Text="Дата окончания:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
-                                <DatePicker SelectedDate="{Binding EditingEmployee.WorkEndDate}"
-                                            HorizontalAlignment="Stretch"/>
-                            </StackPanel>
+                            <TextBlock Grid.Column="0" Text="Начало:" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"
+                                       VerticalAlignment="Center" Margin="0,0,5,0"/>
+                            <TextBox Grid.Column="1" x:Name="WorkStartDateTextBox"
+                                     Text="{Binding EditingEmployee.WorkStartDateText, UpdateSourceTrigger=PropertyChanged}"
+                                     Style="{StaticResource GlassTextBox}"
+                                     Padding="5" Margin="0,0,10,0"
+                                     ToolTip="Введите дату: 13.08.2015, 08.2015 или 2015"/>
+                            <TextBlock Grid.Column="2" Text="Окончание:" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"
+                                       VerticalAlignment="Center" Margin="5,0,5,0"/>
+                            <TextBox Grid.Column="3" x:Name="WorkEndDateTextBox"
+                                     Text="{Binding EditingEmployee.WorkEndDateText, UpdateSourceTrigger=PropertyChanged}"
+                                     Style="{StaticResource GlassTextBox}"
+                                     Padding="5" Margin="0,0,5,0"
+                                     ToolTip="Введите дату: 13.08.2015, 08.2015 или 2015"/>
                         </Grid>
 
                         <!-- Организация в акте -->
@@ -293,16 +344,16 @@
                         <!-- ==================== ЗОНА ПРИКРЕПЛЕНИЯ ФАЙЛА ПРИКАЗА ==================== -->
                         <TextBlock Text="📎 Файл приказа:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
                         <Border x:Name="OrderDropZone"
-                                BorderBrush="#CCC" BorderThickness="2"
+                                BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="2"
                                 Padding="15" Margin="0,0,0,12"
-                                CornerRadius="5"
+                                CornerRadius="8"
+                                Background="{DynamicResource GlassBrush}"
                                 AllowDrop="True"
                                 DragOver="OrderDropZone_DragOver"
-                                Drop="OrderDropZone_Drop"
-                                Background="#FAFAFA">
+                                Drop="OrderDropZone_Drop">
                             <StackPanel>
                                 <TextBlock Text="Перетащите файл сюда или нажмите кнопку:"
-                                           Foreground="#666" FontSize="12" Margin="0,0,0,8"/>
+                                           Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12" Margin="0,0,0,8" Opacity="0.7"/>
                                 <StackPanel Orientation="Horizontal">
                                     <Button Content="📎 Прикрепить приказ"
                                             Command="{Binding AttachOrderFileCommand}"
@@ -315,13 +366,13 @@
                                             Visibility="{Binding HasTempOrderFile, Converter={StaticResource BoolToVisibility}}"/>
                                 </StackPanel>
                                 <!-- Временный файл (только выбран) -->
-                                <TextBlock Margin="0,8,0,0" FontSize="12" Foreground="Orange"
+                                <TextBlock Margin="0,8,0,0" FontSize="12" Foreground="#F59E0B"
                                            Visibility="{Binding HasTempOrderFile, Converter={StaticResource BoolToVisibility}}">
                                     <Run Text="⏳ Выбран (будет сохранён): "/>
                                     <Run Text="{Binding OrderFileDisplayName, Mode=OneWay}"/>
                                 </TextBlock>
                                 <!-- Сохранённый файл (уже в БД) -->
-                                <TextBlock Margin="0,8,0,0" FontSize="12" Foreground="Green"
+                                <TextBlock Margin="0,8,0,0" FontSize="12" Foreground="#10B981"
                                            Visibility="{Binding HasSavedOrderFile, Converter={StaticResource BoolToVisibility}}">
                                     <Run Text="✅ Прикреплён: "/>
                                     <Run Text="{Binding OrderFileDisplayName, Mode=OneWay}"/>
@@ -329,19 +380,22 @@
                             </StackPanel>
                         </Border>
 
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
-                            <Button Content="💾 Сохранить"
-                                    Command="{Binding SaveEmployeeCommand}"
-                                    Style="{StaticResource PrimaryGlassButton}"
-                                    Padding="15,8"
-                                    Margin="0,0,10,0"
-                                    IsDefault="True"/>
-                            <Button Content="❌ Отмена"
-                                    Command="{Binding CancelEditCommand}"
-                                    Style="{StaticResource SecondaryGlassButton}"
-                                    Padding="15,8"
-                                    IsCancel="True"/>
-                        </StackPanel>
+                        <Border Background="{DynamicResource GlassBrush}" CornerRadius="12" Padding="15" Margin="0,10,0,0"
+                                BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="0,1,0,0">
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                <Button Content="💾 Сохранить"
+                                        Command="{Binding SaveEmployeeCommand}"
+                                        Style="{StaticResource PrimaryGlassButton}"
+                                        Padding="15,8"
+                                        Margin="0,0,10,0"
+                                        IsDefault="True"/>
+                                <Button Content="❌ Отмена"
+                                        Command="{Binding CancelEditCommand}"
+                                        Style="{StaticResource SecondaryGlassButton}"
+                                        Padding="15,8"
+                                        IsCancel="True"/>
+                            </StackPanel>
+                        </Border>
                     </StackPanel>
                 </ScrollViewer>
             </Border>

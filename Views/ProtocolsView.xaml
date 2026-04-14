@@ -122,7 +122,7 @@
                 Background="#CC000000"
                 Visibility="{Binding IsEditing, Converter={StaticResource BoolToVisibility}}"
                 Panel.ZIndex="100">
-            <Border Background="#F0FFFFFF"
+            <Border Background="{DynamicResource MainGradient}"
                     Width="580"
                     MaxHeight="680"
                     VerticalAlignment="Center"
@@ -143,7 +143,7 @@
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <TextBlock Grid.Column="0"
-                                       Text="Протокол испытаний"
+                                       Text="🧪 Протокол испытаний"
                                        FontSize="20"
                                        FontWeight="Bold"
                                        Foreground="{DynamicResource TextPrimaryBrush}"
@@ -158,13 +158,29 @@
                                     Background="Transparent"
                                     BorderThickness="0"
                                     Cursor="Hand"
-                                    ToolTip="Закрыть"/>
+                                    ToolTip="Закрыть">
+                                <Button.Style>
+                                    <Style TargetType="Button">
+                                        <Setter Property="Background" Value="Transparent"/>
+                                        <Setter Property="BorderThickness" Value="0"/>
+                                        <Setter Property="Cursor" Value="Hand"/>
+                                        <Style.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter Property="Background" Value="Red"/>
+                                            </Trigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
                         </Grid>
 
                         <TextBlock Text="№ протокола:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
                         <TextBox Text="{Binding EditingProtocol.Number, UpdateSourceTrigger=PropertyChanged}"
                                  Style="{StaticResource GlassTextBox}"
-                                 Margin="0,0,0,12" Padding="5"/>
+                                 Margin="0,0,0,12"
+                                 TextWrapping="Wrap"
+                                 AcceptsReturn="False"
+                                 MinHeight="32"/>
 
                         <TextBlock Text="Тип документа:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
                         <ComboBox SelectedItem="{Binding EditingProtocol.DocumentType}" Margin="0,0,0,12"
@@ -176,40 +192,76 @@
                         <TextBlock Text="Наименование испытания:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
                         <TextBox Text="{Binding EditingProtocol.Name, UpdateSourceTrigger=PropertyChanged}"
                                  Style="{StaticResource GlassTextBox}"
-                                 Margin="0,0,0,12" Padding="5"/>
+                                 Margin="0,0,0,12"
+                                 TextWrapping="Wrap"
+                                 AcceptsReturn="False"
+                                 MinHeight="32"/>
 
                         <TextBlock Text="Тип испытаний:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
                         <TextBox Text="{Binding EditingProtocol.Type, UpdateSourceTrigger=PropertyChanged}"
                                  Style="{StaticResource GlassTextBox}"
-                                 Margin="0,0,0,12" Padding="5"/>
+                                 Margin="0,0,0,12"
+                                 TextWrapping="Wrap"
+                                 AcceptsReturn="False"
+                                 MinHeight="32"/>
 
-                        <TextBlock Text="Дата:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
-                        <DatePicker SelectedDate="{Binding EditingProtocol.Date}"
-                                    HorizontalAlignment="Stretch" Margin="0,0,0,12"/>
+                        <Grid Margin="0,0,0,12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Дата:" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"
+                                       VerticalAlignment="Center" Margin="0,0,5,0"/>
+                            <TextBox Grid.Column="1" x:Name="ProtocolDateTextBox"
+                                     Text="{Binding EditingProtocol.DateText, UpdateSourceTrigger=PropertyChanged}"
+                                     Style="{StaticResource GlassTextBox}"
+                                     Padding="5" Margin="0,0,5,0"
+                                     ToolTip="Введите дату: 13.08.2015, 08.2015 или 2015"/>
+                            <Button Grid.Column="2" x:Name="BtnPickProtocolDate" Content="📅" Padding="6,4"
+                                    Style="{StaticResource GlassButton}"
+                                    Click="BtnPickProtocolDate_Click" ToolTip="Выбрать дату"/>
+                            <Popup x:Name="ProtocolDateCalendarPopup"
+                                   PlacementTarget="{Binding ElementName=BtnPickProtocolDate}"
+                                   Placement="Bottom" StaysOpen="False"
+                                   AllowsTransparency="True" PopupAnimation="Fade">
+                                <Border Background="#F0FFFFFF" BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="5">
+                                    <Calendar x:Name="ProtocolDateCalendar" SelectedDatesChanged="ProtocolDateCalendar_SelectedDatesChanged"
+                                              Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                </Border>
+                            </Popup>
+                        </Grid>
 
                         <TextBlock Text="Лаборатория:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
                         <TextBox Text="{Binding EditingProtocol.Laboratory, UpdateSourceTrigger=PropertyChanged}"
                                  Style="{StaticResource GlassTextBox}"
-                                 Margin="0,0,0,12" Padding="5"/>
+                                 Margin="0,0,0,12"
+                                 TextWrapping="Wrap"
+                                 AcceptsReturn="False"
+                                 MinHeight="32"/>
 
                         <TextBlock Text="Результат:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
                         <TextBox Text="{Binding EditingProtocol.Result, UpdateSourceTrigger=PropertyChanged}"
                                  Style="{StaticResource GlassTextBox}"
-                                 Margin="0,0,0,12" Padding="5"/>
+                                 Margin="0,0,0,12"
+                                 TextWrapping="Wrap"
+                                 AcceptsReturn="False"
+                                 MinHeight="32"/>
 
                         <!-- ==================== ЗОНА ПРИКРЕПЛЕНИЯ ФАЙЛА ПРОТОКОЛА ==================== -->
                         <TextBlock Text="📎 Файл протокола:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
                         <Border x:Name="ProtocolDropZone"
-                                BorderBrush="#CCC" BorderThickness="2"
+                                BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="2"
                                 Padding="15" Margin="0,0,0,12"
                                 CornerRadius="5"
                                 AllowDrop="True"
                                 DragOver="ProtocolDropZone_DragOver"
                                 Drop="ProtocolDropZone_Drop"
-                                Background="#FAFAFA">
+                                Background="{DynamicResource GlassBrush}">
                             <StackPanel>
                                 <TextBlock Text="Перетащите файл сюда или нажмите кнопку:"
-                                           Foreground="#666" FontSize="12" Margin="0,0,0,8"/>
+                                           Foreground="{DynamicResource TextSecondaryBrush}" Opacity="0.7" FontSize="12" Margin="0,0,0,8"/>
                                 <StackPanel Orientation="Horizontal">
                                     <Button Content="📎 Прикрепить протокол"
                                             Command="{Binding AttachProtocolFileCommand}"
@@ -221,7 +273,7 @@
                                             Padding="10,5"
                                             Visibility="{Binding HasProtocolFile, Converter={StaticResource BoolToVisibility}}"/>
                                 </StackPanel>
-                                <TextBlock Margin="0,8,0,0" FontSize="12" Foreground="Green"
+                                <TextBlock Margin="0,8,0,0" FontSize="12" Foreground="#10B981"
                                            Visibility="{Binding HasProtocolFile, Converter={StaticResource BoolToVisibility}}">
                                     <Run Text="✅ Прикреплён: "/>
                                     <Run Text="{Binding EditingProtocol.FileName, Mode=OneWay}"/>
@@ -229,19 +281,26 @@
                             </StackPanel>
                         </Border>
 
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
-                            <Button Content="💾 Сохранить"
-                                    Command="{Binding SaveProtocolCommand}"
-                                    Style="{StaticResource PrimaryGlassButton}"
-                                    Padding="15,8"
-                                    Margin="0,0,10,0"
-                                    IsDefault="True"/>
-                            <Button Content="❌ Отмена"
-                                    Command="{Binding CancelEditCommand}"
-                                    Style="{StaticResource SecondaryGlassButton}"
-                                    Padding="15,8"
-                                    IsCancel="True"/>
-                        </StackPanel>
+                        <Border Background="{DynamicResource GlassBrush}"
+                                CornerRadius="12"
+                                Padding="15"
+                                Margin="0,10,0,0"
+                                BorderBrush="{DynamicResource GlassBorderBrush}"
+                                BorderThickness="0,1,0,0">
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                <Button Content="💾 Сохранить"
+                                        Command="{Binding SaveProtocolCommand}"
+                                        Style="{StaticResource PrimaryGlassButton}"
+                                        Padding="15,8"
+                                        Margin="0,0,10,0"
+                                        IsDefault="True"/>
+                                <Button Content="❌ Отмена"
+                                        Command="{Binding CancelEditCommand}"
+                                        Style="{StaticResource SecondaryGlassButton}"
+                                        Padding="15,8"
+                                        IsCancel="True"/>
+                            </StackPanel>
+                        </Border>
                     </StackPanel>
                 </ScrollViewer>
             </Border>

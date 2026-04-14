@@ -1,58 +1,46 @@
 ﻿using System.Windows;
 using System.Windows.Input;
+using AGenerator.Models;
+using AGenerator.ViewModels;
 
-namespace AGenerator.Views
+namespace AGenerator.Views;
+
+public partial class ObjectSelectionWindow : Window
 {
-    public partial class ObjectSelectionWindow : Window
+    public ObjectSelectionWindow()
     {
-        public ObjectSelectionWindow()
-        {
-            InitializeComponent();
-        }
+        InitializeComponent();
+    }
 
-        // Перетаскивание окна за шапку
-        private void Window_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    private void Window_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ChangedButton == MouseButton.Left)
+            DragMove();
+    }
+
+    private void Minimize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
+
+    private void Close_Click(object sender, RoutedEventArgs e) => Close();
+
+    private void ObjectsListBox_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+    {
+        // Двойной клик = выбрать объект
+        if (DataContext is ObjectSelectionViewModel vm && vm.SelectedObject != null)
         {
-            if (e.ButtonState == MouseButtonState.Pressed)
+            e.Handled = true;
+
+            if (vm.SelectObjectCommand.CanExecute(null))
             {
-                this.DragMove();
+                vm.SelectObjectCommand.Execute(null);
             }
-        }
-
-        // Свернуть окно
-        private void Minimize_Click(object sender, RoutedEventArgs e)
-        {
-            this.WindowState = WindowState.Minimized;
-        }
-
-        // Закрыть окно
-        private void Close_Click(object sender, RoutedEventArgs e)
-        {
-            this.Close();
         }
     }
 
-    /// <summary>
-    /// Конвертер: true -> Collapsed, false -> Visible (инверсия BooleanToVisibility)
-    /// </summary>
-    public class InverseBooleanToVisibilityConverter : System.Windows.Data.IValueConverter
+    private void EditObjectButton_Click(object sender, RoutedEventArgs e)
     {
-        public object Convert(object value, System.Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        if (DataContext is ObjectSelectionViewModel vm && vm.SelectedObject != null)
         {
-            if (value is bool boolValue)
-            {
-                return boolValue ? Visibility.Collapsed : Visibility.Visible;
-            }
-            return Visibility.Visible;
-        }
-
-        public object ConvertBack(object value, System.Type targetType, object parameter, System.Globalization.CultureInfo culture)
-        {
-            if (value is Visibility visibility)
-            {
-                return visibility != Visibility.Visible;
-            }
-            return false;
+            vm.EditObjectCommand.Execute(null);
         }
     }
 }

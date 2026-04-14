@@ -20,7 +20,14 @@ public class Schema
     public string Stage { get; set; } = string.Empty; // Стадия проектирования
     
     public DateTime? Date { get; set; }
-    
+
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public string DateText
+    {
+        get => Date?.ToString("dd.MM.yyyy") ?? "";
+        set { /* Только для биндинга */ }
+    }
+
     public string Author { get; set; } = string.Empty;
     
     public string FilePath { get; set; } = string.Empty;
