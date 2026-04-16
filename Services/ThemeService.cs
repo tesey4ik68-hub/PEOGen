@@ -57,15 +57,15 @@ public class ThemeService
         SetResource(resources, "GradientEnd", ParseColor(theme.SecondaryColor));
         SetResource(resources, "AccentColor", ParseColor(theme.AccentColor));
 
-        // Вычисляем контрастный цвет текста на основе яркости градиента
-        var textColor = CalculateContrastTextColor(theme.PrimaryColor, theme.SecondaryColor);
+        // Используем заданный пользователем цвет текста (вместо авто-расчёта)
+        var textColor = ParseColor(theme.TextColor);
         var secondaryTextColor = CalculateSecondaryTextColor(textColor);
 
-        // Обновляем кисти текста (обновляем цвет внутри существующих кистей)
-        UpdateBrushColor(resources, "TextPrimaryBrush", ParseColor(textColor));
-        UpdateBrushColor(resources, "TextSecondaryBrush", ParseColor(secondaryTextColor));
-        SetResource(resources, "TextPrimary", ParseColor(textColor));
-        SetResource(resources, "TextSecondary", ParseColor(secondaryTextColor));
+        // Обновляем кисти текста
+        UpdateBrushColor(resources, "TextPrimaryBrush", textColor);
+        UpdateBrushColor(resources, "TextSecondaryBrush", secondaryTextColor);
+        SetResource(resources, "TextPrimary", textColor);
+        SetResource(resources, "TextSecondary", secondaryTextColor);
 
         // Обновляем градиент
         var gradient = new LinearGradientBrush
@@ -189,19 +189,23 @@ public class ThemeService
     private static string CalculateSecondaryTextColor(string primaryTextColor)
     {
         var color = ParseColor(primaryTextColor);
+        return CalculateSecondaryTextColor(color).ToString();
+    }
 
+    private static Color CalculateSecondaryTextColor(Color color)
+    {
         // Определяем, светлая тема или тёмная
         var luminance = (0.299 * color.R + 0.587 * color.G + 0.114 * color.B) / 255.0;
 
         if (luminance > 0.5)
         {
             // Светлая тема — делаем текст чуть светлее
-            return "#4A5568";
+            return Color.FromRgb(0x4A, 0x55, 0x68);
         }
         else
         {
             // Тёмная тема — делаем текст чуть темнее
-            return "#CBD5E0";
+            return Color.FromRgb(0xCB, 0xD5, 0xE0);
         }
     }
 }

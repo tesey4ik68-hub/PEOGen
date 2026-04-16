@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
@@ -11,6 +11,7 @@ using Microsoft.Win32;
 using AGenerator.Database;
 using AGenerator.Models;
 using AGenerator.Services;
+using System.Collections.Generic;
 
 namespace AGenerator.ViewModels;
 
@@ -38,6 +39,18 @@ public partial class EmployeesViewModel : ViewModelBase
     private Employee _editingEmployee = new();
 
     /// <summary>
+    /// Список организаций для выбора (из объекта + справочник)
+    /// </summary>
+    public ObservableCollection<Organization> _availableOrganizations = new();
+    public ObservableCollection<Organization> AvailableOrganizations => _availableOrganizations;
+
+    /// <summary>
+    /// Выбранная организация в форме редактирования
+    /// </summary>
+    [ObservableProperty]
+    private Organization? _selectedOrganizationForEmployee;
+
+    /// <summary>
     /// Временный путь к файлу приказа (копия, которая удаляется при отмене).
     /// Если файл уже сохранён в БД — это основной путь.
     /// </summary>
@@ -59,6 +72,7 @@ public partial class EmployeesViewModel : ViewModelBase
         _objectId = objectId;
         _objectName = objectName;
         _ = LoadEmployeesAsync();
+        _ = LoadOrganizationsAsync();
     }
 
     private async Task LoadEmployeesAsync()
@@ -105,10 +119,80 @@ public partial class EmployeesViewModel : ViewModelBase
         }
     }
 
+    private async Task LoadOrganizationsAsync()
+    {
+        try
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+
+            // Загружаем организации только текущего объекта
+            var objectOrgs = await context.Organizations
+                .Where(o => o.ConstructionObjectId == _objectId)
+                .OrderBy(o => o.Name)
+                .ToListAsync();
+
+            _availableOrganizations.Clear();
+            foreach (var org in objectOrgs)
+                _availableOrganizations.Add(org);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[ERROR] Ошибка загрузки организаций: {ex}");
+        }
+    }
+
+    /// <summary>
+    /// Загрузить организации из справочника (публичный метод для вызова из View)
+    /// </summary>
+    public async Task LoadOrganizationsFromDirectoryAsync()
+    {
+        await LoadOrganizationsAsync();
+    }
+
     [RelayCommand]
     private async Task RefreshAsync()
     {
         await LoadEmployeesAsync();
+    }
+
+    /// <summary>
+    /// Вызывается при выборе организации из ComboBox — заполняет наименование и реквизиты
+    /// </summary>
+    public void OnOrganizationSelected()
+    {
+        if (SelectedOrganizationForEmployee == null) return;
+        EditingEmployee.OrganizationName = SelectedOrganizationForEmployee.DisplayName;
+        EditingEmployee.OrganizationRequisites = SelectedOrganizationForEmployee.FullRequisites;
+        OnPropertyChanged(nameof(EditingEmployee));
+    }
+
+    /// <summary>
+    /// Обновить привязку EditingEmployee для отображения изменений в UI
+    /// </summary>
+    public void RefreshEditingEmployee()
+    {
+        OnPropertyChanged(nameof(EditingEmployee));
+    }
+
+    /// <summary>
+    /// Обновить привязку SelectedOrganizationForEmployee
+    /// </summary>
+    public void RefreshSelectedOrganization()
+    {
+        OnPropertyChanged(nameof(SelectedOrganizationForEmployee));
+    }
+
+    /// <summary>
+    /// Событие для запроса открытия окна добавления организации
+    /// </summary>
+    public event EventHandler? RequestAddOrganization;
+
+    [RelayCommand]
+    private async Task AddOrganizationAsync()
+    {
+        RequestAddOrganization?.Invoke(this, EventArgs.Empty);
+        // После добавления перезагружаем список
+        await LoadOrganizationsAsync();
     }
 
     [RelayCommand]
@@ -121,6 +205,8 @@ public partial class EmployeesViewModel : ViewModelBase
             Role = RepresentativeType.SK_Zakazchika,
             IsActive = true
         };
+        SelectedOrganizationForEmployee = null;
+        OnPropertyChanged(nameof(EditingEmployee));
         OnPropertyChanged(nameof(HasTempOrderFile));
         OnPropertyChanged(nameof(HasSavedOrderFile));
         OnPropertyChanged(nameof(OrderFileDisplayName));
@@ -154,6 +240,12 @@ public partial class EmployeesViewModel : ViewModelBase
             IsActive = SelectedEmployee.IsActive,
             OrderFilePath = SelectedEmployee.OrderFilePath
         };
+
+        // Пытаемся найти организацию по имени
+        SelectedOrganizationForEmployee = _availableOrganizations.FirstOrDefault(
+            o => o.DisplayName.Equals(EditingEmployee.OrganizationName, StringComparison.OrdinalIgnoreCase));
+
+        OnPropertyChanged(nameof(EditingEmployee));
         OnPropertyChanged(nameof(HasTempOrderFile));
         OnPropertyChanged(nameof(HasSavedOrderFile));
         OnPropertyChanged(nameof(OrderFileDisplayName));
@@ -296,6 +388,7 @@ public partial class EmployeesViewModel : ViewModelBase
             try { File.Delete(_tempOrderFilePath); } catch { /* игнорируем */ }
         }
         _tempOrderFilePath = null;
+        SelectedOrganizationForEmployee = null;
         OnPropertyChanged(nameof(HasTempOrderFile));
         OnPropertyChanged(nameof(HasSavedOrderFile));
         OnPropertyChanged(nameof(OrderFileDisplayName));

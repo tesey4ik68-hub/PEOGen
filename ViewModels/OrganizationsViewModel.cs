@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
@@ -17,6 +17,7 @@ namespace AGenerator.ViewModels;
 public partial class OrganizationsViewModel : ViewModelBase
 {
     private readonly IDbContextFactory<AppDbContext> _contextFactory;
+    private readonly int _constructionObjectId;
 
     [ObservableProperty]
     private ObservableCollection<Organization> _organizations = new();
@@ -33,9 +34,13 @@ public partial class OrganizationsViewModel : ViewModelBase
     [ObservableProperty]
     private string _searchText = string.Empty;
 
-    public OrganizationsViewModel(IDbContextFactory<AppDbContext> contextFactory)
+    [ObservableProperty]
+    private OrganizationRole? _roleFilter;
+
+    public OrganizationsViewModel(IDbContextFactory<AppDbContext> contextFactory, int constructionObjectId)
     {
         _contextFactory = contextFactory;
+        _constructionObjectId = constructionObjectId;
         _ = LoadDataAsync();
     }
 
@@ -48,8 +53,15 @@ public partial class OrganizationsViewModel : ViewModelBase
         {
             await using var context = await _contextFactory.CreateDbContextAsync();
 
-            var list = await context.Organizations
-                .OrderBy(o => o.Name)
+            var query = context.Organizations
+                .Where(o => o.ConstructionObjectId == _constructionObjectId);
+
+            if (RoleFilter.HasValue)
+                query = query.Where(o => o.Role == RoleFilter.Value);
+
+            var list = await query
+                .OrderBy(o => o.Role)
+                .ThenBy(o => o.Name)
                 .ToListAsync();
 
             Organizations.Clear();
@@ -71,6 +83,11 @@ public partial class OrganizationsViewModel : ViewModelBase
         }
     }
 
+    partial void OnRoleFilterChanged(OrganizationRole? value)
+    {
+        _ = LoadDataAsync();
+    }
+
     [RelayCommand]
     private async Task RefreshAsync()
     {
@@ -82,6 +99,8 @@ public partial class OrganizationsViewModel : ViewModelBase
     {
         var newOrg = new Organization
         {
+            ConstructionObjectId = _constructionObjectId,
+            Role = OrganizationRole.Other,
             Name = "Новая организация",
             Requisites = "",
             ShortName = "",
@@ -160,8 +179,27 @@ public partial class OrganizationsViewModel : ViewModelBase
         {
             await using var context = await _contextFactory.CreateDbContextAsync();
 
+            // Логика активности: только одна активная организация на роль
+            if (org.IsActive && (org.Role == OrganizationRole.Customer || org.Role == OrganizationRole.GenContractor || org.Role == OrganizationRole.Designer))
+            {
+                // Находим все активные организации той же роли и деактивируем их
+                var sameRoleOrgs = await context.Organizations
+                    .Where(o => o.ConstructionObjectId == _constructionObjectId 
+                             && o.Role == org.Role 
+                             && o.IsActive 
+                             && o.Id != org.Id)
+                    .ToListAsync();
+
+                foreach (var sameOrg in sameRoleOrgs)
+                {
+                    sameOrg.IsActive = false;
+                    context.Entry(sameOrg).State = EntityState.Modified;
+                }
+            }
+
             if (org.Id == 0)
             {
+                org.ConstructionObjectId = _constructionObjectId;
                 context.Organizations.Add(org);
             }
             else

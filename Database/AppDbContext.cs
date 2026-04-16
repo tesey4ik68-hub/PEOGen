@@ -32,7 +32,14 @@ public class AppDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        // ==================== ACT → ORGANIZATION ====================
+        // ==================== CONSTRUCTION OBJECT → ORGANIZATIONS (one-to-many) ====================
+        modelBuilder.Entity<Organization>()
+            .HasOne(o => o.ConstructionObject)
+            .WithMany(c => c.Organizations)
+            .HasForeignKey(o => o.ConstructionObjectId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        // ==================== ACT → ORGANIZATION (snapshot) ====================
         modelBuilder.Entity<Act>()
             .HasOne(a => a.CustomerOrganization)
             .WithMany()
@@ -57,7 +64,7 @@ public class AppDbContext : DbContext
             .HasForeignKey(a => a.DesignerOrganizationId)
             .OnDelete(DeleteBehavior.SetNull);
 
-        // ==================== CONSTRUCTION OBJECT → ORGANIZATION ====================
+        // ==================== CONSTRUCTION OBJECT → DEFAULT ORGANIZATION (legacy) ====================
         modelBuilder.Entity<ConstructionObject>()
             .HasOne(o => o.DefaultCustomerOrganization)
             .WithMany()

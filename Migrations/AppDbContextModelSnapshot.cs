@@ -371,6 +371,10 @@ namespace AGenerator.Migrations
                     b.Property<int?>("DefaultGenContractorOrganizationId")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("Designer")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("DesignerRequisites")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -528,6 +532,9 @@ namespace AGenerator.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
+                    b.Property<int>("ConstructionObjectId")
+                        .HasColumnType("INTEGER");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("TEXT");
 
@@ -542,10 +549,15 @@ namespace AGenerator.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<int>("Role")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("ShortName")
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ConstructionObjectId");
 
                     b.ToTable("Organizations");
                 });
@@ -894,6 +906,17 @@ namespace AGenerator.Migrations
                     b.Navigation("ConstructionObject");
                 });
 
+            modelBuilder.Entity("AGenerator.Models.Organization", b =>
+                {
+                    b.HasOne("AGenerator.Models.ConstructionObject", "ConstructionObject")
+                        .WithMany("Organizations")
+                        .HasForeignKey("ConstructionObjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ConstructionObject");
+                });
+
             modelBuilder.Entity("AGenerator.Models.ProjectDoc", b =>
                 {
                     b.HasOne("AGenerator.Models.ConstructionObject", "ConstructionObject")
@@ -951,6 +974,8 @@ namespace AGenerator.Migrations
                     b.Navigation("Employees");
 
                     b.Navigation("Materials");
+
+                    b.Navigation("Organizations");
 
                     b.Navigation("ProjectDocs");
 

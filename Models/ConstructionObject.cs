@@ -15,17 +15,19 @@ public class ConstructionObject
     public string Address { get; set; } = string.Empty;
     
     public string Customer { get; set; } = string.Empty;
-    
+
     public string Contractor { get; set; } = string.Empty;
-    
+
+    public string Designer { get; set; } = string.Empty;
+
     public string ProjectCode { get; set; } = string.Empty;
 
-    // Реквизиты организаций
+    // Реквизиты организаций (legacy/fallback)
     public string CustomerRequisites { get; set; } = string.Empty;
     public string ContractorRequisites { get; set; } = string.Empty;
     public string DesignerRequisites { get; set; } = string.Empty;
 
-    // Организации по умолчанию (справочник)
+    // Организации по умолчанию (legacy/fallback для совместимости)
     public int? DefaultCustomerOrganizationId { get; set; }
     public Organization? DefaultCustomerOrganization { get; set; }
     public int? DefaultGenContractorOrganizationId { get; set; }
@@ -34,6 +36,11 @@ public class ConstructionObject
     public Organization? DefaultContractorOrganization { get; set; }
     public int? DefaultDesignerOrganizationId { get; set; }
     public Organization? DefaultDesignerOrganization { get; set; }
+
+    /// <summary>
+    /// Справочник организаций текущего объекта (основной источник)
+    /// </summary>
+    public List<Organization> Organizations { get; set; } = new();
 
     public List<Act> Acts { get; set; } = new();
     

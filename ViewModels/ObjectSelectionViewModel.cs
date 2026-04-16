@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
@@ -35,6 +35,27 @@ namespace AGenerator.ViewModels
 
         [ObservableProperty]
         private string _newObjectAddress = string.Empty;
+
+        [ObservableProperty]
+        private string _newObjectCustomer = string.Empty;
+
+        [ObservableProperty]
+        private string _newObjectContractor = string.Empty;
+
+        [ObservableProperty]
+        private string _newObjectDesigner = string.Empty;
+
+        [ObservableProperty]
+        private string _newObjectProjectCode = string.Empty;
+
+        [ObservableProperty]
+        private string _newObjectCustomerRequisites = string.Empty;
+
+        [ObservableProperty]
+        private string _newObjectContractorRequisites = string.Empty;
+
+        [ObservableProperty]
+        private string _newObjectDesignerRequisites = string.Empty;
 
         public ObjectSelectionViewModel(IDbContextFactory<AppDbContext> contextFactory, IFileService fileService)
         {
@@ -83,6 +104,13 @@ namespace AGenerator.ViewModels
             IsCreatingNew = true;
             NewObjectName = string.Empty;
             NewObjectAddress = string.Empty;
+            NewObjectCustomer = string.Empty;
+            NewObjectContractor = string.Empty;
+            NewObjectDesigner = string.Empty;
+            NewObjectProjectCode = string.Empty;
+            NewObjectCustomerRequisites = string.Empty;
+            NewObjectContractorRequisites = string.Empty;
+            NewObjectDesignerRequisites = string.Empty;
         }
 
         [RelayCommand]
@@ -101,15 +129,70 @@ namespace AGenerator.ViewModels
             }
 
             await using var context = await _contextFactory.CreateDbContextAsync();
-            
+
             var newObj = new ConstructionObject
             {
                 Name = NewObjectName,
-                Address = NewObjectAddress
+                Address = NewObjectAddress,
+                Customer = NewObjectCustomer,
+                Contractor = NewObjectContractor,
+                Designer = NewObjectDesigner,
+                ProjectCode = NewObjectProjectCode,
+                CustomerRequisites = NewObjectCustomerRequisites,
+                ContractorRequisites = NewObjectContractorRequisites,
+                DesignerRequisites = NewObjectDesignerRequisites
             };
 
             context.Objects.Add(newObj);
             await context.SaveChangesAsync();
+
+            // Создаём 3 стандартные организации для нового объекта
+            var now = DateTime.Now;
+
+            var customerOrg = new Organization
+            {
+                ConstructionObjectId = newObj.Id,
+                Role = OrganizationRole.Customer,
+                Name = NewObjectCustomer,
+                Requisites = NewObjectCustomerRequisites,
+                IsActive = true,
+                CreatedAt = now
+            };
+
+            var contractorOrg = new Organization
+            {
+                ConstructionObjectId = newObj.Id,
+                Role = OrganizationRole.GenContractor,
+                Name = NewObjectContractor,
+                Requisites = NewObjectContractorRequisites,
+                IsActive = true,
+                CreatedAt = now
+            };
+
+            var designerOrg = new Organization
+            {
+                ConstructionObjectId = newObj.Id,
+                Role = OrganizationRole.Designer,
+                Name = NewObjectDesigner,
+                Requisites = NewObjectDesignerRequisites,
+                IsActive = true,
+                CreatedAt = now
+            };
+
+            context.Organizations.Add(customerOrg);
+            context.Organizations.Add(contractorOrg);
+            context.Organizations.Add(designerOrg);
+            await context.SaveChangesAsync();
+
+            // Обновляем связи организаций в объекте
+            var dbObject = await context.Objects.FindAsync(newObj.Id);
+            if (dbObject != null)
+            {
+                dbObject.DefaultCustomerOrganizationId = customerOrg.Id;
+                dbObject.DefaultGenContractorOrganizationId = contractorOrg.Id;
+                dbObject.DefaultDesignerOrganizationId = designerOrg.Id;
+                await context.SaveChangesAsync();
+            }
 
             // Обновляем список и выбираем новый объект
             await LoadObjectsAsync();

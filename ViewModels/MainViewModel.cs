@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.ObjectModel;
 using System.Threading.Tasks;
 using System.Windows;
@@ -99,7 +99,7 @@ public partial class MainViewModel : ObservableObject
             SchemasViewModel = new SchemasViewModel(_contextFactory, _fileService, objectId, objectName);
             ProtocolsViewModel = new ProtocolsViewModel(_contextFactory, _fileService, objectId, objectName);
             ProjectDocsViewModel = new ProjectDocsViewModel(_contextFactory, _fileService, objectId, objectName);
-            OrganizationsViewModel = new OrganizationsViewModel(_contextFactory);
+            OrganizationsViewModel = new OrganizationsViewModel(_contextFactory, objectId);
 
             // По умолчанию отображаем Акты
             CurrentView = ActsViewModel;
@@ -174,7 +174,7 @@ public partial class MainViewModel : ObservableObject
     /// Открыть окно редактирования объекта
     /// </summary>
     [RelayCommand]
-    private async Task EditObjectAsync()
+    private void EditObject()
     {
         if (CurrentObject == null) return;
 

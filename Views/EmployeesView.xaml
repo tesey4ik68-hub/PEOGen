@@ -1,4 +1,4 @@
-﻿<UserControl x:Class="AGenerator.Views.EmployeesView"
+<UserControl x:Class="AGenerator.Views.EmployeesView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -163,7 +163,7 @@
                     Margin="20"
                     Effect="{StaticResource GlassShadow}">
 
-                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <ScrollViewer Style="{StaticResource GlassScrollViewer}" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                     <StackPanel>
                         <!-- Заголовок с кнопкой закрытия -->
                         <Grid Margin="0,0,0,20">
@@ -215,17 +215,40 @@
                         <TextBlock Text="ФИО:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
                         <TextBox Text="{Binding EditingEmployee.FullName, UpdateSourceTrigger=PropertyChanged}"
                                  Style="{StaticResource GlassTextBox}"
-                                 Margin="0,0,0,12" Padding="5"/>
+                                 Margin="0,0,0,12"
+                                 TextWrapping="Wrap" AcceptsReturn="False"
+                                 Height="Auto" MinHeight="32"/>
 
                         <TextBlock Text="Должность:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
                         <TextBox Text="{Binding EditingEmployee.Position, UpdateSourceTrigger=PropertyChanged}"
                                  Style="{StaticResource GlassTextBox}"
-                                 Margin="0,0,0,12" Padding="5"/>
+                                 Margin="0,0,0,12"
+                                 TextWrapping="Wrap" AcceptsReturn="False"
+                                 Height="Auto" MinHeight="32"/>
 
                         <TextBlock Text="Организация:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
-                        <TextBox Text="{Binding EditingEmployee.OrganizationName, UpdateSourceTrigger=PropertyChanged}"
-                                 Style="{StaticResource GlassTextBox}"
-                                 Margin="0,0,0,12" Padding="5"/>
+                        <Grid Margin="0,0,0,12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <ComboBox Grid.Column="0"
+                                      ItemsSource="{Binding AvailableOrganizations}"
+                                      SelectedItem="{Binding SelectedOrganizationForEmployee, Mode=TwoWay}"
+                                      Style="{StaticResource GlassComboBox}"
+                                      DisplayMemberPath="Name"
+                                      IsEditable="False"
+                                      SelectionChanged="OrganizationComboBox_SelectionChanged"
+                                      ToolTip="Выберите организацию из списка">
+                            </ComboBox>
+                            <Button Grid.Column="1" Content="+"
+                                    Command="{Binding AddOrganizationCommand}"
+                                    Padding="8,6"
+                                    Margin="8,0,0,0"
+                                    Style="{StaticResource GlassButton}"
+                                    ToolTip="Добавить новую организацию"
+                                    FontSize="14" FontWeight="Bold"/>
+                        </Grid>
 
                         <!-- Приказ -->
                         <Grid Margin="0,0,0,12">
@@ -242,11 +265,12 @@
                             <TextBox Grid.Column="1" Text="{Binding EditingEmployee.OrderNumber, UpdateSourceTrigger=PropertyChanged}"
                                      Style="{StaticResource GlassTextBox}"
                                      Padding="5" Margin="0,0,10,0"/>
+                            
                             <TextBlock Grid.Column="2" Text="Дата:" FontWeight="SemiBold"
                                        Foreground="{DynamicResource TextPrimaryBrush}"
                                        VerticalAlignment="Center" Margin="0,0,5,0"/>
                             <TextBox Grid.Column="3" x:Name="OrderDateTextBox"
-                                     Text="{Binding EditingEmployee.OrderDateText, UpdateSourceTrigger=PropertyChanged}"
+                                     Text="{Binding EditingEmployee.OrderDateText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                      Style="{StaticResource GlassTextBox}"
                                      Padding="5" Width="100" Margin="0,0,5,0"
                                      ToolTip="Введите дату: 13.08.2015, 08.2015 или 2015"/>
@@ -285,7 +309,7 @@
                                        Foreground="{DynamicResource TextPrimaryBrush}"
                                        VerticalAlignment="Center" Margin="0,0,5,0"/>
                             <TextBox Grid.Column="3" x:Name="NrsDateTextBox"
-                                     Text="{Binding EditingEmployee.NrsDateText, UpdateSourceTrigger=PropertyChanged}"
+                                     Text="{Binding EditingEmployee.NrsDateText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                      Style="{StaticResource GlassTextBox}"
                                      Padding="5" Width="100" Margin="0,0,5,0"
                                      ToolTip="Введите дату: 13.08.2015, 08.2015 или 2015"/>
@@ -309,37 +333,68 @@
                         <Grid Margin="0,0,0,12">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="120"/>
+                                <ColumnDefinition Width="110"/>
                                 <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="120"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="140"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <TextBlock Grid.Column="0" Text="Начало:" FontWeight="SemiBold"
                                        Foreground="{DynamicResource TextPrimaryBrush}"
                                        VerticalAlignment="Center" Margin="0,0,5,0"/>
                             <TextBox Grid.Column="1" x:Name="WorkStartDateTextBox"
-                                     Text="{Binding EditingEmployee.WorkStartDateText, UpdateSourceTrigger=PropertyChanged}"
+                                     Text="{Binding EditingEmployee.WorkStartDateText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                      Style="{StaticResource GlassTextBox}"
-                                     Padding="5" Margin="0,0,10,0"
+                                     Padding="5" Width="100" Margin="0,0,5,0"
                                      ToolTip="Введите дату: 13.08.2015, 08.2015 или 2015"/>
-                            <TextBlock Grid.Column="2" Text="Окончание:" FontWeight="SemiBold"
+                            <Button Grid.Column="2" x:Name="BtnPickWorkStartDate" Content="📅" Padding="6,4"
+                                    Style="{StaticResource GlassButton}"
+                                    Click="BtnPickWorkStartDate_Click" ToolTip="Выбрать дату"/>
+                            <Popup x:Name="WorkStartDateCalendarPopup"
+                                   PlacementTarget="{Binding ElementName=BtnPickWorkStartDate}"
+                                   Placement="Bottom" StaysOpen="False"
+                                   AllowsTransparency="True" PopupAnimation="Fade">
+                                <Border Background="#F0FFFFFF" BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="5">
+                                    <Calendar x:Name="WorkStartDateCalendar" SelectedDatesChanged="WorkStartDateCalendar_SelectedDatesChanged"
+                                              Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                </Border>
+                            </Popup>
+                            <TextBlock Grid.Column="3" Text="Окончание:" FontWeight="SemiBold"
                                        Foreground="{DynamicResource TextPrimaryBrush}"
-                                       VerticalAlignment="Center" Margin="5,0,5,0"/>
-                            <TextBox Grid.Column="3" x:Name="WorkEndDateTextBox"
-                                     Text="{Binding EditingEmployee.WorkEndDateText, UpdateSourceTrigger=PropertyChanged}"
+                                       VerticalAlignment="Center" Margin="10,0,5,0"/>
+                            <TextBox Grid.Column="4" x:Name="WorkEndDateTextBox"
+                                     Text="{Binding EditingEmployee.WorkEndDateText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                      Style="{StaticResource GlassTextBox}"
                                      Padding="5" Margin="0,0,5,0"
+                                     Width="100"
                                      ToolTip="Введите дату: 13.08.2015, 08.2015 или 2015"/>
+                            <Button Grid.Column="5" x:Name="BtnPickWorkEndDate" Content="📅" Padding="6,4"
+                                    Style="{StaticResource GlassButton}"
+                                    Click="BtnPickWorkEndDate_Click" ToolTip="Выбрать дату"/>
+                            <Popup x:Name="WorkEndDateCalendarPopup"
+                                   PlacementTarget="{Binding ElementName=BtnPickWorkEndDate}"
+                                   Placement="Bottom" StaysOpen="False"
+                                   AllowsTransparency="True" PopupAnimation="Fade">
+                                <Border Background="#F0FFFFFF" BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="5">
+                                    <Calendar x:Name="WorkEndDateCalendar" SelectedDatesChanged="WorkEndDateCalendar_SelectedDatesChanged"
+                                              Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                </Border>
+                            </Popup>
                         </Grid>
 
                         <!-- Организация в акте -->
-                        <CheckBox Content="Включить организацию в акт"
+                        <CheckBox Content="Прописывать реквизиты в акте"
                                   IsChecked="{Binding EditingEmployee.IncludeOrganizationInAct}"
                                   FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
                         <TextBlock Text="Реквизиты организации:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
                         <TextBox Text="{Binding EditingEmployee.OrganizationRequisites, UpdateSourceTrigger=PropertyChanged}"
                                  Style="{StaticResource GlassTextBox}"
-                                 Margin="0,0,0,12" Padding="5" AcceptsReturn="True" Height="60"
-                                 TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"/>
+                                 Margin="0,0,0,12" Padding="5" AcceptsReturn="True"
+                                 TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"
+                                 Height="Auto" MinHeight="50"/>
 
                         <!-- ==================== ЗОНА ПРИКРЕПЛЕНИЯ ФАЙЛА ПРИКАЗА ==================== -->
                         <TextBlock Text="📎 Файл приказа:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>

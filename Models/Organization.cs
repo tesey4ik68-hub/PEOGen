@@ -3,11 +3,38 @@ using System;
 namespace AGenerator.Models;
 
 /// <summary>
-/// Справочник организаций
+/// Роль организации в контексте объекта строительства
+/// </summary>
+public enum OrganizationRole
+{
+    Customer,         // Заказчик
+    GenContractor,    // Генподрядчик
+    Designer,         // Проектировщик
+    SubContractor,    // Субподрядчик
+    Other             // Иное лицо
+}
+
+/// <summary>
+/// Справочник организаций — принадлежит конкретному объекту строительства
 /// </summary>
 public class Organization
 {
     public int Id { get; set; }
+
+    /// <summary>
+    /// ID объекта строительства, которому принадлежит организация
+    /// </summary>
+    public int ConstructionObjectId { get; set; }
+
+    /// <summary>
+    /// Навигационное свойство на объект
+    /// </summary>
+    public ConstructionObject? ConstructionObject { get; set; }
+
+    /// <summary>
+    /// Роль организации (одна на запись)
+    /// </summary>
+    public OrganizationRole Role { get; set; }
 
     /// <summary>
     /// Полное наименование организации
@@ -25,7 +52,9 @@ public class Organization
     public string Requisites { get; set; } = string.Empty;
 
     /// <summary>
-    /// Признак активности организации
+    /// Признак активности организации.
+    /// Для ролей Customer/GenContractor/Designer означает "текущая организация для шапки АОСР".
+    /// Активной может быть только одна организация на роль в рамках объекта.
     /// </summary>
     public bool IsActive { get; set; } = true;
 
@@ -59,5 +88,10 @@ public class Organization
 
             return string.Empty;
         }
+    }
+
+    public override string ToString()
+    {
+        return Name;
     }
 }

@@ -26,9 +26,11 @@ public partial class SettingsViewModel : ViewModelBase
     [ObservableProperty] private string _primaryColor = "#4FC3F7";
     [ObservableProperty] private string _secondaryColor = "#2196F3";
     [ObservableProperty] private string _accentColor = "#1976D2";
+    [ObservableProperty] private string _textColor = "#2D3748";
     [ObservableProperty] private string _primaryColorLabel = "#4FC3F7";
     [ObservableProperty] private string _secondaryColorLabel = "#2196F3";
     [ObservableProperty] private string _accentColorLabel = "#1976D2";
+    [ObservableProperty] private string _textColorLabel = "#2D3748";
 
     [ObservableProperty] private DocumentSettings _documentSettings = new();
     public ObservableCollection<ApplicationOrderItem> ApplicationOrder { get; } = new();
@@ -165,11 +167,12 @@ public partial class SettingsViewModel : ViewModelBase
         {
             var resources = Application.Current.Resources;
             var gradient = resources["MainGradient"] as LinearGradientBrush;
-            string primary = "#4FC3F7", secondary = "#2196F3", accent = "#1976D2";
+            string primary = "#4FC3F7", secondary = "#2196F3", accent = "#1976D2", text = "#2D3748";
             if (gradient != null && gradient.GradientStops.Count >= 2) { primary = gradient.GradientStops[0].Color.ToString(); secondary = gradient.GradientStops[1].Color.ToString(); }
             if (resources["AccentColor"] is Color accentColor) accent = accentColor.ToString();
-            PrimaryColor = primary; SecondaryColor = secondary; AccentColor = accent;
-            PrimaryColorLabel = primary; SecondaryColorLabel = secondary; AccentColorLabel = accent;
+            if (resources["TextPrimary"] is Color textColor) text = textColor.ToString();
+            PrimaryColor = primary; SecondaryColor = secondary; AccentColor = accent; TextColor = text;
+            PrimaryColorLabel = primary; SecondaryColorLabel = secondary; AccentColorLabel = accent; TextColorLabel = text;
             SelectedThemePreset = ThemePresets.FirstOrDefault(p => p.PrimaryColor == primary && p.SecondaryColor == secondary && p.AccentColor == accent);
         }
         catch { }
@@ -187,21 +190,22 @@ public partial class SettingsViewModel : ViewModelBase
     [RelayCommand] private void SelectPrimaryColor() { var picker = new ColorPickerWindow(PrimaryColor); if (picker.ShowDialog() == true) { PrimaryColor = picker.SelectedColor; PrimaryColorLabel = picker.SelectedColor; ApplyThemePreview(); } }
     [RelayCommand] private void SelectSecondaryColor() { var picker = new ColorPickerWindow(SecondaryColor); if (picker.ShowDialog() == true) { SecondaryColor = picker.SelectedColor; SecondaryColorLabel = picker.SelectedColor; ApplyThemePreview(); } }
     [RelayCommand] private void SelectAccentColor() { var picker = new ColorPickerWindow(AccentColor); if (picker.ShowDialog() == true) { AccentColor = picker.SelectedColor; AccentColorLabel = picker.SelectedColor; ApplyThemePreview(); } }
+    [RelayCommand] private void SelectTextColor() { var picker = new ColorPickerWindow(TextColor); if (picker.ShowDialog() == true) { TextColor = picker.SelectedColor; TextColorLabel = picker.SelectedColor; ApplyThemePreview(); } }
 
     [RelayCommand]
     private void ApplyTheme()
     {
-        var settings = new ThemeSettings { PrimaryColor = PrimaryColor, SecondaryColor = SecondaryColor, AccentColor = AccentColor, TextColor = "#2D3748" };
+        var settings = new ThemeSettings { PrimaryColor = PrimaryColor, SecondaryColor = SecondaryColor, AccentColor = AccentColor, TextColor = TextColor };
         _themeService.ApplyAndSaveTheme(settings); RefreshAllWindows();
     }
 
     [RelayCommand]
     private void ResetTheme()
     {
-        PrimaryColor = "#4FC3F7"; SecondaryColor = "#2196F3"; AccentColor = "#1976D2";
-        PrimaryColorLabel = "#4FC3F7"; SecondaryColorLabel = "#2196F3"; AccentColorLabel = "#1976D2";
+        PrimaryColor = "#4FC3F7"; SecondaryColor = "#2196F3"; AccentColor = "#1976D2"; TextColor = "#2D3748";
+        PrimaryColorLabel = "#4FC3F7"; SecondaryColorLabel = "#2196F3"; AccentColorLabel = "#1976D2"; TextColorLabel = "#2D3748";
         SelectedThemePreset = ThemePresets.FirstOrDefault(p => p.Name == "Ocean Breeze");
-        var settings = new ThemeSettings { PrimaryColor = PrimaryColor, SecondaryColor = SecondaryColor, AccentColor = AccentColor, TextColor = "#2D3748" };
+        var settings = new ThemeSettings { PrimaryColor = PrimaryColor, SecondaryColor = SecondaryColor, AccentColor = AccentColor, TextColor = TextColor };
         _themeService.ApplyAndSaveTheme(settings); RefreshAllWindows();
     }
 
@@ -218,12 +222,12 @@ public partial class SettingsViewModel : ViewModelBase
         var luminance = (0.299 * accentColor.R + 0.587 * accentColor.G + 0.114 * accentColor.B) / 255.0;
         var accentTextColor = luminance < 0.5 ? Colors.White : Color.FromRgb(0x1A, 0x20, 0x2C);
         resources["AccentTextBrush"] = new SolidColorBrush(accentTextColor);
-        var textColor = CalcContrast(PrimaryColor, SecondaryColor);
+        var textColor = ParseColor(TextColor);
         var secTextColor = CalcSecondary(textColor);
-        resources["TextPrimaryBrush"] = new SolidColorBrush(ParseColor(textColor));
-        resources["TextSecondaryBrush"] = new SolidColorBrush(ParseColor(secTextColor));
-        resources["TextPrimary"] = ParseColor(textColor);
-        resources["TextSecondary"] = ParseColor(secTextColor);
+        resources["TextPrimaryBrush"] = new SolidColorBrush(textColor);
+        resources["TextSecondaryBrush"] = new SolidColorBrush(secTextColor);
+        resources["TextPrimary"] = textColor;
+        resources["TextSecondary"] = secTextColor;
         resources["GlassBrush"] = new SolidColorBrush(Color.FromArgb(0x80, 0xFF, 0xFF, 0xFF));
         resources["GlassBorderBrush"] = new SolidColorBrush(Color.FromArgb(0x40, 0xFF, 0xFF, 0xFF));
         RefreshAllWindows();
@@ -258,6 +262,12 @@ public partial class SettingsViewModel : ViewModelBase
         var c = ParseColor(pt);
         var l = (0.299 * c.R + 0.587 * c.G + 0.114 * c.B) / 255.0;
         return l > 0.5 ? "#4A5568" : "#CBD5E0";
+    }
+
+    private static Color CalcSecondary(Color c)
+    {
+        var l = (0.299 * c.R + 0.587 * c.G + 0.114 * c.B) / 255.0;
+        return l > 0.5 ? Color.FromRgb(0x4A, 0x55, 0x68) : Color.FromRgb(0xCB, 0xD5, 0xE0);
     }
 
     private static Color ParseColor(string hex) { try { return (Color)ColorConverter.ConvertFromString(hex); } catch { return Colors.White; } }

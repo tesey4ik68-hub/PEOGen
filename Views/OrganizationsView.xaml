@@ -1,11 +1,32 @@
-﻿<UserControl x:Class="AGenerator.Views.OrganizationsView"
+<UserControl x:Class="AGenerator.Views.OrganizationsView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:models="clr-namespace:AGenerator.Models"
+             xmlns:converters="clr-namespace:AGenerator.Converters"
              xmlns:behaviors="clr-namespace:AGenerator.Behaviors"
              mc:Ignorable="d"
              d:DesignHeight="600" d:DesignWidth="1200">
+
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
+        <converters:NullToBoolConverter x:Key="NullToBoolConverter"/>
+        <converters:OrganizationRoleToStringConverter x:Key="OrganizationRoleToStringConverter"/>
+        <ObjectDataProvider x:Key="OrganizationRoles" MethodName="GetValues" ObjectType="{x:Type models:OrganizationRole}">
+            <ObjectDataProvider.MethodParameters>
+                <x:Type TypeName="models:OrganizationRole"/>
+            </ObjectDataProvider.MethodParameters>
+        </ObjectDataProvider>
+
+        <!-- Стиль для ячеек с переносом текста -->
+        <Style x:Key="WrappingCellText" TargetType="TextBlock">
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="Padding" Value="2"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
+    </UserControl.Resources>
 
     <Grid>
         <Grid.RowDefinitions>
@@ -46,7 +67,7 @@
                       GridLinesVisibility="Horizontal"
                       HeadersVisibility="Column"
                       SelectionMode="Single"
-                      HorizontalScrollBarVisibility="Disabled"
+                      HorizontalScrollBarVisibility="Auto"
                       CellEditEnding="OrganizationsDataGrid_CellEditEnding"
                       behaviors:DataGridAutoSizeColumnsBehavior.IsEnabled="True">
 
@@ -59,24 +80,37 @@
                 </DataGrid.Resources>
 
                 <DataGrid.Columns>
+                    <!-- Роль организации -->
+                    <DataGridTemplateColumn Header="Роль" Width="130">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Role, Converter={StaticResource OrganizationRoleToStringConverter}}" Padding="2"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                        <DataGridTemplateColumn.CellEditingTemplate>
+                            <DataTemplate>
+                                <ComboBox ItemsSource="{Binding Source={StaticResource OrganizationRoles}}"
+                                        SelectedItem="{Binding Role, UpdateSourceTrigger=PropertyChanged}"
+                                        Style="{StaticResource GlassComboBox}"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellEditingTemplate>
+                    </DataGridTemplateColumn>
+
                     <!-- Наименование -->
-                    <DataGridTextColumn Header="Наименование" Width="250"
+                    <DataGridTextColumn Header="Наименование" Width="200"
                                         Binding="{Binding Name, UpdateSourceTrigger=PropertyChanged}"/>
 
-                    <!-- Краткое наименование -->
-                    <DataGridTextColumn Header="Краткое имя" Width="150"
-                                        Binding="{Binding ShortName, UpdateSourceTrigger=PropertyChanged}"/>
-
                     <!-- Реквизиты -->
-                    <DataGridTextColumn Header="Реквизиты" Width="400"
-                                        Binding="{Binding Requisites, UpdateSourceTrigger=PropertyChanged}"/>
+                    <DataGridTextColumn Header="Реквизиты" Width="250"
+                                        Binding="{Binding Requisites, UpdateSourceTrigger=PropertyChanged}"
+                                        ElementStyle="{StaticResource WrappingCellText}"/>
 
                     <!-- Активность -->
-                    <DataGridCheckBoxColumn Header="Активна" Width="80"
+                    <DataGridCheckBoxColumn Header="Активна" Width="70"
                                             Binding="{Binding IsActive, UpdateSourceTrigger=PropertyChanged}"/>
 
                     <!-- Дата создания -->
-                    <DataGridTextColumn Header="Дата создания" Width="120"
+                    <DataGridTextColumn Header="Дата создания" Width="100"
                                         Binding="{Binding CreatedAt, StringFormat={}{0:dd.MM.yyyy}}" 
                                         IsReadOnly="True"/>
                 </DataGrid.Columns>
