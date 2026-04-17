@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
@@ -141,9 +141,10 @@ public partial class ActsViewModel : ViewModelBase
 
             // Заполняем коллекции
             Acts.Clear();
+            int order = 1;
             foreach (var act in actsList)
             {
-                // Пересчитываем вычисляемые поля перед отображением
+                act.SortOrder = order++;
                 ActCalculationService.RecalculateAll(act);
                 Acts.Add(act);
             }
@@ -185,6 +186,88 @@ public partial class ActsViewModel : ViewModelBase
     }
 
     /// <summary>
+    /// Выбрать все акты для пакетной генерации
+    /// </summary>
+    [RelayCommand]
+    private void SelectAll()
+    {
+        foreach (var act in Acts)
+        {
+            act.IsSelectedForBatch = true;
+        }
+        StatusMessage = $"Выбрано актов: {Acts.Count}";
+    }
+
+    /// <summary>
+    /// Снять выбор со всех актов
+    /// </summary>
+    [RelayCommand]
+    private void DeselectAll()
+    {
+        foreach (var act in Acts)
+        {
+            act.IsSelectedForBatch = false;
+        }
+        StatusMessage = "Выбор снят";
+    }
+
+    /// <summary>
+    /// Дублировать выбранный акт
+    /// </summary>
+    [RelayCommand]
+    private async Task DuplicateAct(Act act)
+    {
+        if (act == null) return;
+
+        var newAct = new Act
+        {
+            ConstructionObjectId = act.ConstructionObjectId,
+            Type = act.Type,
+            ActNumber = act.ActNumber + " (копия)",
+            WorkName = act.WorkName,
+            WorkDescription = act.WorkDescription,
+            Interval = act.Interval,
+            IntervalType = act.IntervalType,
+            WorkStartDate = act.WorkStartDate,
+            WorkEndDate = act.WorkEndDate,
+            ActDate = DateTime.Now,
+            Status = "Черновик",
+            CreatedAt = DateTime.Now,
+            CustomerRepId = act.CustomerRepId,
+            GenContractorRepId = act.GenContractorRepId,
+            GenContractorSkRepId = act.GenContractorSkRepId,
+            ContractorRepId = act.ContractorRepId,
+            AuthorSupervisionId = act.AuthorSupervisionId,
+            CustomerOrganizationId = act.CustomerOrganizationId,
+            GenContractorOrganizationId = act.GenContractorOrganizationId,
+            ContractorOrganizationId = act.ContractorOrganizationId,
+            DesignerOrganizationId = act.DesignerOrganizationId,
+            Volume = act.Volume,
+            UnitOfMeasure = act.UnitOfMeasure,
+            Level1 = act.Level1,
+            Level2 = act.Level2,
+            Level3 = act.Level3,
+            Mark = act.Mark,
+            InAxes = act.InAxes,
+            ProjectDocumentation = act.ProjectDocumentation,
+            StandardReference = act.StandardReference,
+            Appendix = act.Appendix,
+            CopiesCount = act.CopiesCount,
+            LoadPercentage = act.LoadPercentage,
+            FullLoadConditions = act.FullLoadConditions
+        };
+
+        ActCalculationService.RecalculateAll(newAct);
+
+        Acts.Insert(0, newAct);
+        SelectedAct = newAct;
+
+        await SaveActToDbAsync(newAct);
+
+        StatusMessage = $"Акт дублирован: {newAct.WorkName}";
+    }
+
+    /// <summary>
     /// Создать новый акт
     /// </summary>
     [RelayCommand]
@@ -210,6 +293,7 @@ public partial class ActsViewModel : ViewModelBase
         ActCalculationService.RecalculateAll(newAct);
 
         // Вставляем в начало коллекции
+        newAct.SortOrder = Acts.Count > 0 ? Acts.Max(a => a.SortOrder) + 1 : 1;
         Acts.Insert(0, newAct);
         SelectedAct = newAct;
 
@@ -543,6 +627,48 @@ public partial class ActsViewModel : ViewModelBase
             "Последующие работы", MessageBoxButton.OK, MessageBoxImage.Information);
     }
 
+    // ==================== РЕДАКТИРОВАНИЕ ПОДПИСАНТОВ ====================
+
+    [RelayCommand]
+    private void EditSignatories(Act act)
+    {
+        if (act == null) return;
+
+        var signatories = new List<string>();
+        if (act.CustomerRep != null) signatories.Add("Заказчик");
+        if (act.GenContractorRep != null) signatories.Add("Генподрядчик");
+        if (act.GenContractorSkRep != null) signatories.Add("СК генподрядчика");
+        if (act.ContractorRep != null) signatories.Add("Подрядчик");
+        if (act.DesignerRep != null) signatories.Add("Авторский надзор");
+        if (act.OtherPerson1 != null || act.OtherPerson2 != null || act.OtherPerson3 != null) signatories.Add("Иное лицо");
+
+        var message = $"Подписанты акта \"{act.WorkName}\":\n\n";
+        message += signatories.Count > 0 ? string.Join("\n• ", new[] { "" }.Concat(signatories)) : "Не выбрано";
+        message += "\n\nВыберите сотрудников в соответствующих столбцах таблицы:\n• СК Заказчика\n• СК Генподрядчика\n• Подрядчик\n• Авторский надзор";
+
+        MessageBox.Show(message, "Подписанты", MessageBoxButton.OK, MessageBoxImage.Information);
+    }
+
+    // ==================== РЕДАКТИРОВАНИЕ ОРГАНИЗАЦИЙ ====================
+
+    [RelayCommand]
+    private void EditOrganizations(Act act)
+    {
+        if (act == null) return;
+
+        var orgs = new List<string>();
+        if (act.CustomerOrganization != null) orgs.Add("Заказчик");
+        if (act.GenContractorOrganization != null) orgs.Add("Генподрядчик");
+        if (act.ContractorOrganization != null) orgs.Add("Подрядчик");
+        if (act.DesignerOrganization != null) orgs.Add("Проектировщик");
+
+        var message = $"Организации акта \"{act.WorkName}\":\n\n";
+        message += orgs.Count > 0 ? string.Join("\n• ", new[] { "" }.Concat(orgs)) : "Не выбрано";
+        message += "\n\nВыберите организации в соответствующих столбцах таблицы:\n• Заказчик\n• Генподрядчик\n• Подрядчик (орг.)\n• Проектировщик";
+
+        MessageBox.Show(message, "Организации", MessageBoxButton.OK, MessageBoxImage.Information);
+    }
+
     // ==================== ГЕНЕРАЦИЯ ДОКУМЕНТОВ ====================
 
     /// <summary>
@@ -613,6 +739,140 @@ public partial class ActsViewModel : ViewModelBase
 
             act.Status = "❌ Ошибка";
             StatusMessage = $"Ошибка генерации: {ex.Message}";
+        }
+    }
+
+    /// <summary>
+    /// Сгенерировать документы для выбранных актов (пакетная генерация)
+    /// </summary>
+    [RelayCommand]
+    private async Task GenerateSelectedActs()
+    {
+        var selectedActs = Acts.Where(a => a.IsSelectedForBatch).ToList();
+
+        if (selectedActs.Count == 0)
+        {
+            MessageBox.Show(
+                "Не выбрано ни одного акта для генерации.\nОтметьте акты в столбце \"Печать\".",
+                "Пакетная генерация",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
+        var result = MessageBox.Show(
+            $"Сгенерировать документы для {selectedActs.Count} выбранных актов?",
+            "Подтверждение",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question);
+
+        if (result != MessageBoxResult.Yes) return;
+
+        var successCount = 0;
+        var errorCount = 0;
+
+        foreach (var act in selectedActs)
+        {
+            try
+            {
+                StatusMessage = $"Генерация: {act.WorkName}...";
+
+                ActCalculationService.RecalculateAll(act);
+                await SaveActToDbAsync(act);
+
+                var freshAct = await LoadActWithDetailsAsync(act.Id);
+                if (freshAct == null)
+                {
+                    errorCount++;
+                    continue;
+                }
+
+                var filePath = await _wordService.GenerateActAsync(freshAct);
+
+                act.Status = "✅ Сгенерирован";
+                act.GeneratedFilePath = filePath;
+                act.UpdatedAt = DateTime.Now;
+                await SaveActToDbAsync(act);
+
+                successCount++;
+            }
+            catch (Exception ex)
+            {
+                errorCount++;
+                act.Status = "❌ Ошибка";
+                Debug.WriteLine($"[ERROR] Ошибка генерации акта {act.Id}: {ex.Message}");
+            }
+        }
+
+        StatusMessage = $"Создано документов: {successCount}, ошибок: {errorCount}";
+
+        if (successCount > 0)
+        {
+            MessageBox.Show(
+                $"Готово! Создано документов: {successCount}\nОшибок: {errorCount}",
+                "Пакетная генерация",
+                MessageBoxButton.OK,
+                errorCount > 0 ? MessageBoxImage.Warning : MessageBoxImage.Information);
+        }
+    }
+
+    /// <summary>
+    /// Удалить выбранные акты (пакетное удаление)
+    /// </summary>
+    [RelayCommand]
+    private async Task DeleteSelectedActs()
+    {
+        var selectedActs = Acts.Where(a => a.IsSelectedForBatch).ToList();
+
+        if (selectedActs.Count == 0)
+        {
+            MessageBox.Show(
+                "Не выбрано ни одного акта для удаления.\nОтметьте ��кты в столбце \"Печать\".",
+                "Удаление",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
+        var result = MessageBox.Show(
+            $"Удалить {selectedActs.Count} выбранных актов?\n\nЭто действие нельзя отменить.",
+            "Подтверждение удаления",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning);
+
+        if (result != MessageBoxResult.Yes) return;
+
+        try
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+
+            foreach (var act in selectedActs)
+            {
+                var actToDelete = await context.Acts.FindAsync(act.Id);
+                if (actToDelete != null)
+                {
+                    context.Acts.Remove(actToDelete);
+                }
+            }
+
+            await context.SaveChangesAsync();
+
+            foreach (var act in selectedActs)
+            {
+                Acts.Remove(act);
+            }
+
+            StatusMessage = $"Удалено актов: {selectedActs.Count}";
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                $"Ошибка удаления актов: {ex.Message}",
+                "Ошибка",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+
+            StatusMessage = $"Ошибка удаления: {ex.Message}";
         }
     }
 

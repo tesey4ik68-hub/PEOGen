@@ -206,4 +206,65 @@ public class Act
                 .Select(apd => $"{apd.ProjectDoc.Code} — {apd.ProjectDoc.Name}"));
         }
     }
+
+    // ==================== UI-ТОЛЬКО СВОЙСТВА (NotMapped) ====================
+
+    /// <summary>
+    /// Признак выбора акта для пакетных операций (checkbox "Печать")
+    /// </summary>
+    [NotMapped]
+    public bool IsSelectedForBatch { get; set; }
+
+    /// <summary>
+    /// Порядковый номер строки (№ п/п)
+    /// </summary>
+    [NotMapped]
+    public int SortOrder { get; set; }
+
+    /// <summary>
+    /// Краткое отображение подписантов для ячейки таблицы
+    /// </summary>
+    [NotMapped]
+    public string SignatoriesDisplay
+    {
+        get
+        {
+            var signatories = new List<string>();
+            if (CustomerRep != null) signatories.Add("З");
+            if (GenContractorRep != null) signatories.Add("ГП");
+            if (GenContractorSkRep != null) signatories.Add("СК");
+            if (ContractorRep != null) signatories.Add("П");
+            if (DesignerRep != null) signatories.Add("АН");
+            if (OtherPerson1 != null || OtherPerson2 != null || OtherPerson3 != null) signatories.Add("Ин");
+
+            return signatories.Count > 0 ? string.Join("/", signatories) : "Не выбрано";
+        }
+    }
+
+    /// <summary>
+    /// Краткое отображение организаций для ячейки таблицы
+    /// </summary>
+    [NotMapped]
+    public string OrganizationsDisplay
+    {
+        get
+        {
+            var orgs = new List<string>();
+            if (CustomerOrganization != null) orgs.Add("Заказчик");
+            if (GenContractorOrganization != null) orgs.Add("Генподрядчик");
+            if (ContractorOrganization != null) orgs.Add("Подрядчик");
+            if (DesignerOrganization != null) orgs.Add("Проектировщик");
+
+            return orgs.Count > 0 ? string.Join(", ", orgs) : "Не выбрано";
+        }
+    }
+
+    [NotMapped]
+    public string StandardReferenceDisplay
+    {
+        get
+        {
+            return !string.IsNullOrEmpty(StandardReference) ? StandardReference : "Не выбрано";
+        }
+    }
 }

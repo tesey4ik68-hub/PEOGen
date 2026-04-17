@@ -516,12 +516,13 @@
                 <Setter Property="FontSize" Value="12"/>
             </Style>
 
-            <!-- Стиль ячеек DataGrid -->
+<!-- Стиль ячеек DataGrid -->
             <Style TargetType="DataGridCell">
                 <Setter Property="Padding" Value="4,1"/>
                 <Setter Property="BorderThickness" Value="0,0,1,1"/>
                 <Setter Property="BorderBrush" Value="#D4D4D4"/>
                 <Setter Property="FontSize" Value="12"/>
+                <Setter Property="VerticalContentAlignment" Value="Center"/>
                 <Setter Property="Template">
                     <Setter.Value>
                         <ControlTemplate TargetType="DataGridCell">
@@ -530,7 +531,7 @@
                                     BorderThickness="{TemplateBinding BorderThickness}"
                                     Padding="{TemplateBinding Padding}"
                                     SnapsToDevicePixels="True">
-                                <ContentPresenter SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
+                                <ContentPresenter SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}" VerticalAlignment="Center"/>
                             </Border>
                             <ControlTemplate.Triggers>
                                 <Trigger Property="IsSelected" Value="True">
@@ -550,15 +551,24 @@
             <Style TargetType="TextBlock" x:Key="DataGridTextBlockStyle">
                 <Setter Property="TextWrapping" Value="Wrap"/>
                 <Setter Property="Padding" Value="2"/>
+                <Setter Property="VerticalAlignment" Value="Center"/>
             </Style>
 
-            <!-- Стиль для DataGridTextColumn с переносом текста -->
+            <!-- Стиль для DataGridTextColumn с переносом текста и tooltip -->
             <Style x:Key="WrappingTextColumn" TargetType="DataGridTextColumn">
                 <Setter Property="ElementStyle">
                     <Setter.Value>
                         <Style TargetType="TextBlock">
                             <Setter Property="TextWrapping" Value="Wrap"/>
                             <Setter Property="Padding" Value="2"/>
+                            <Setter Property="VerticalAlignment" Value="Center"/>
+                        </Style>
+                    </Setter.Value>
+                </Setter>
+                <Setter Property="EditingElementStyle">
+                    <Setter.Value>
+                        <Style TargetType="TextBox">
+                            <Setter Property="ToolTip" Value="{Binding}"/>
                         </Style>
                     </Setter.Value>
                 </Setter>
