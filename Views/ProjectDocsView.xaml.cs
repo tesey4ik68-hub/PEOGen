@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -60,6 +60,15 @@ public partial class ProjectDocsView : UserControl
         {
             var files = (string[])e.Data.GetData(DataFormats.FileDrop);
             await vm.HandleProjectFileDrop(files);
+        }
+    }
+
+    private void Modal_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Escape && DataContext is ProjectDocsViewModel vm && vm.IsEditing)
+        {
+            vm.CancelEditCommand.Execute(null);
+            e.Handled = true;
         }
     }
 }

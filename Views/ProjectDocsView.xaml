@@ -1,4 +1,4 @@
-﻿<UserControl x:Class="AGenerator.Views.ProjectDocsView"
+<UserControl x:Class="AGenerator.Views.ProjectDocsView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -118,7 +118,8 @@
         <Border Grid.Row="0" Grid.RowSpan="3"
                 Background="#CC000000"
                 Visibility="{Binding IsEditing, Converter={StaticResource BoolToVisibility}}"
-                Panel.ZIndex="100">
+                Panel.ZIndex="100"
+                KeyDown="Modal_KeyDown">
             <Border Background="{DynamicResource MainGradient}"
                     Width="580"
                     MaxHeight="650"
@@ -131,7 +132,7 @@
                     BorderBrush="{DynamicResource GlassBorderBrush}"
                     Effect="{StaticResource GlassShadow}">
 
-                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <ScrollViewer Style="{StaticResource GlassScrollViewer}" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                     <StackPanel>
                         <!-- Заголовок с кнопкой закрытия -->
                         <Grid Margin="0,0,0,20">
@@ -238,7 +239,7 @@
                                 Background="{DynamicResource GlassBrush}">
                             <StackPanel>
                                 <TextBlock Text="Перетащите файл сюда или нажмите кнопку:"
-                                           Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12" Margin="0,0,0,8" Opacity="0.7"/>
+                                           Foreground="{DynamicResource TextPrimaryBrush}" FontSize="12" Margin="0,0,0,8" Opacity="0.7"/>
                                 <StackPanel Orientation="Horizontal">
                                     <Button Content="&#x1F4CE; Прикрепить файл"
                                             Command="{Binding AttachProjectFileCommand}"

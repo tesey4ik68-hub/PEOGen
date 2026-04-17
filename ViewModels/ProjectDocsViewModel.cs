@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
@@ -166,8 +166,32 @@ public partial class ProjectDocsViewModel : ViewModelBase
     }
 
     [RelayCommand]
-    private void CancelEdit()
+    public void CancelEdit()
     {
+        if (!string.IsNullOrEmpty(EditingProjectDoc.Code) ||
+            !string.IsNullOrEmpty(EditingProjectDoc.Name) ||
+            !string.IsNullOrEmpty(EditingProjectDoc.Sheets) ||
+            !string.IsNullOrEmpty(EditingProjectDoc.Organization) ||
+            !string.IsNullOrEmpty(EditingProjectDoc.GIP) ||
+            !string.IsNullOrEmpty(EditingProjectDoc.FilePath))
+        {
+            var result = MessageBox.Show(
+                "Сохранить изменения перед выходом?",
+                "Подтверждение",
+                MessageBoxButton.YesNoCancel,
+                MessageBoxImage.Question);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                SaveProjectDocCommand.Execute(null);
+                return;
+            }
+            else if (result == MessageBoxResult.Cancel)
+            {
+                return;
+            }
+        }
+
         IsEditing = false;
     }
 

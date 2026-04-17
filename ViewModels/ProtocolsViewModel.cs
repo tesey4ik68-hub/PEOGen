@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
@@ -171,8 +171,34 @@ public partial class ProtocolsViewModel : ViewModelBase
     }
 
     [RelayCommand]
-    private void CancelEdit()
+    public void CancelEdit()
     {
+        if (!string.IsNullOrEmpty(EditingProtocol.Number) ||
+            !string.IsNullOrEmpty(EditingProtocol.Name) ||
+            !string.IsNullOrEmpty(EditingProtocol.Type) ||
+            EditingProtocol.DocumentType != default ||
+            EditingProtocol.Date != default ||
+            !string.IsNullOrEmpty(EditingProtocol.Laboratory) ||
+            !string.IsNullOrEmpty(EditingProtocol.Result) ||
+            !string.IsNullOrEmpty(EditingProtocol.FilePath))
+        {
+            var result = MessageBox.Show(
+                "Сохранить изменения перед выходом?",
+                "Подтверждение",
+                MessageBoxButton.YesNoCancel,
+                MessageBoxImage.Question);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                SaveProtocolCommand.Execute(null);
+                return;
+            }
+            else if (result == MessageBoxResult.Cancel)
+            {
+                return;
+            }
+        }
+
         IsEditing = false;
     }
 

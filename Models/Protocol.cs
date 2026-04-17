@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 namespace AGenerator.Models;
 
@@ -7,8 +7,8 @@ namespace AGenerator.Models;
 /// </summary>
 public enum ProtocolDocType
 {
-    TestProtocol,    // Протокол испытаний
-    Conclusion       // Заключение
+    ConcreteDensity,      // Акт испытания образцов бетона
+    CompactionDegree     // Заключение о степени уплотнения
 }
 
 /// <summary>
@@ -62,8 +62,8 @@ public class Protocol
     [System.ComponentModel.DataAnnotations.Schema.NotMapped]
     public string DocumentTypeDisplay => DocumentType switch
     {
-        ProtocolDocType.TestProtocol => "Протокол испытаний",
-        ProtocolDocType.Conclusion => "Заключение",
+        ProtocolDocType.ConcreteDensity => "Акт испытания образцов бетона",
+        ProtocolDocType.CompactionDegree => "Заключение о степени уплотнения",
         _ => DocumentType.ToString()
     };
 

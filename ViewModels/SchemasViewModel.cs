@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
@@ -167,8 +167,31 @@ public partial class SchemasViewModel : ViewModelBase
     }
 
     [RelayCommand]
-    private void CancelEdit()
+    public void CancelEdit()
     {
+        if (!string.IsNullOrEmpty(EditingSchema.Number) || 
+            !string.IsNullOrEmpty(EditingSchema.Name) ||
+            !string.IsNullOrEmpty(EditingSchema.Stage) ||
+            EditingSchema.Date.HasValue ||
+            !string.IsNullOrEmpty(EditingSchema.FilePath))
+        {
+            var result = System.Windows.MessageBox.Show(
+                "Сохранить изменения перед выходом?",
+                "Подтверждение",
+                System.Windows.MessageBoxButton.YesNoCancel,
+                System.Windows.MessageBoxImage.Question);
+
+            if (result == System.Windows.MessageBoxResult.Yes)
+            {
+                SaveSchemaCommand.Execute(null);
+                return;
+            }
+            else if (result == System.Windows.MessageBoxResult.Cancel)
+            {
+                return;
+            }
+        }
+
         IsEditing = false;
     }
 
