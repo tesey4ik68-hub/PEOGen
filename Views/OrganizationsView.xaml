@@ -12,14 +12,13 @@
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
         <converters:NullToBoolConverter x:Key="NullToBoolConverter"/>
-        <converters:OrganizationRoleToStringConverter x:Key="OrganizationRoleToStringConverter"/>
+        <converters:OrganizationRoleToDisplayConverter x:Key="OrganizationRoleToDisplayConverter"/>
         <ObjectDataProvider x:Key="OrganizationRoles" MethodName="GetValues" ObjectType="{x:Type models:OrganizationRole}">
             <ObjectDataProvider.MethodParameters>
                 <x:Type TypeName="models:OrganizationRole"/>
             </ObjectDataProvider.MethodParameters>
         </ObjectDataProvider>
 
-        <!-- Стиль для ячеек с переносом текста -->
         <Style x:Key="WrappingCellText" TargetType="TextBlock">
             <Setter Property="TextWrapping" Value="Wrap"/>
             <Setter Property="Padding" Value="2"/>
@@ -69,6 +68,7 @@
                       SelectionMode="Single"
                       HorizontalScrollBarVisibility="Auto"
                       CellEditEnding="OrganizationsDataGrid_CellEditEnding"
+                      AutoGeneratingColumn="OrganizationsDataGrid_AutoGeneratingColumn"
                       behaviors:DataGridAutoSizeColumnsBehavior.IsEnabled="True">
 
                 <DataGrid.Resources>
@@ -81,36 +81,43 @@
 
                 <DataGrid.Columns>
                     <!-- Роль организации -->
-                    <DataGridTemplateColumn Header="Роль" Width="130">
+                    <DataGridTemplateColumn Header="Роль" Width="150" MinWidth="100" MaxWidth="200">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
-                                <TextBlock Text="{Binding Role, Converter={StaticResource OrganizationRoleToStringConverter}}" Padding="2"/>
+                                <TextBlock Text="{Binding Role, Converter={StaticResource OrganizationRoleToDisplayConverter}}" Padding="2"/>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                         <DataGridTemplateColumn.CellEditingTemplate>
                             <DataTemplate>
                                 <ComboBox ItemsSource="{Binding Source={StaticResource OrganizationRoles}}"
-                                        SelectedItem="{Binding Role, UpdateSourceTrigger=PropertyChanged}"
-                                        Style="{StaticResource GlassComboBox}"/>
+                                          SelectedItem="{Binding Role, UpdateSourceTrigger=PropertyChanged}"
+                                          Style="{StaticResource GlassComboBox}">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Converter={StaticResource OrganizationRoleToDisplayConverter}}"/>
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellEditingTemplate>
                     </DataGridTemplateColumn>
 
                     <!-- Наименование -->
-                    <DataGridTextColumn Header="Наименование" Width="200"
-                                        Binding="{Binding Name, UpdateSourceTrigger=PropertyChanged}"/>
+                    <DataGridTextColumn Header="Наименование" Width="200" MinWidth="100" MaxWidth="500"
+                                        Binding="{Binding Name, UpdateSourceTrigger=PropertyChanged}"
+                                        ElementStyle="{StaticResource WrappingCellText}"/>
 
                     <!-- Реквизиты -->
-                    <DataGridTextColumn Header="Реквизиты" Width="250"
+                    <DataGridTextColumn Header="Реквизиты" Width="250" MinWidth="100" MaxWidth="500"
                                         Binding="{Binding Requisites, UpdateSourceTrigger=PropertyChanged}"
                                         ElementStyle="{StaticResource WrappingCellText}"/>
 
                     <!-- Активность -->
-                    <DataGridCheckBoxColumn Header="Активна" Width="70"
+                    <DataGridCheckBoxColumn Header="Активна" Width="80" MinWidth="60"
                                             Binding="{Binding IsActive, UpdateSourceTrigger=PropertyChanged}"/>
 
                     <!-- Дата создания -->
-                    <DataGridTextColumn Header="Дата создания" Width="100"
+                    <DataGridTextColumn Header="Дата создания" Width="100" MinWidth="80"
                                         Binding="{Binding CreatedAt, StringFormat={}{0:dd.MM.yyyy}}" 
                                         IsReadOnly="True"/>
                 </DataGrid.Columns>

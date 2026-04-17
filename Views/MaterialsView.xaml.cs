@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -94,6 +94,15 @@ public partial class MaterialsView : UserControl
         {
             var files = (string[])e.Data.GetData(DataFormats.FileDrop);
             vm.HandleCertificateFileDrop(files);
+        }
+    }
+
+    private void Modal_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Escape && DataContext is MaterialsViewModel vm && vm.IsEditing)
+        {
+            vm.CancelEditCommand.Execute(null);
+            e.Handled = true;
         }
     }
 }

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
@@ -282,8 +282,33 @@ public partial class MaterialsViewModel : ViewModelBase
     }
 
     [RelayCommand]
-    private void CancelEdit()
+    public void CancelEdit()
     {
+        if (!string.IsNullOrEmpty(EditingMaterial.Name) || 
+            !string.IsNullOrEmpty(EditingMaterial.Type) ||
+            !string.IsNullOrEmpty(EditingMaterial.Unit) ||
+            !string.IsNullOrEmpty(EditingMaterial.CertificateNumber) ||
+            !string.IsNullOrEmpty(EditingMaterial.CertificateDateText) ||
+            EditingMaterial.DeliveryDate.HasValue ||
+            !string.IsNullOrEmpty(_tempCertFilePath))
+        {
+            var result = System.Windows.MessageBox.Show(
+                "Сохранить изменения перед выходом?",
+                "Подтверждение",
+                System.Windows.MessageBoxButton.YesNoCancel,
+                System.Windows.MessageBoxImage.Question);
+
+            if (result == System.Windows.MessageBoxResult.Yes)
+            {
+                SaveMaterialCommand.Execute(null);
+                return;
+            }
+            else if (result == System.Windows.MessageBoxResult.Cancel)
+            {
+                return;
+            }
+        }
+
         if (!string.IsNullOrEmpty(_tempCertFilePath) && File.Exists(_tempCertFilePath))
             try { File.Delete(_tempCertFilePath); } catch { }
         _tempCertFilePath = null;

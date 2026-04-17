@@ -148,12 +148,8 @@ public class Employee : INotifyPropertyChanged
         get => OrderDate?.ToString("dd.MM.yyyy") ?? "";
         set
         {
-            if (string.IsNullOrWhiteSpace(value)) { OrderDate = null; OnPropertyChanged(nameof(OrderDateText)); return; }
-            if (TryParseDate(value, out var dt))
-            {
-                OrderDate = dt;
-                OnPropertyChanged(nameof(OrderDateText));
-            }
+            if (string.IsNullOrWhiteSpace(value)) { OrderDate = null; return; }
+            if (TryParseDate(value, out var dt)) OrderDate = dt;
         }
     }
 
@@ -163,12 +159,8 @@ public class Employee : INotifyPropertyChanged
         get => NrsDate?.ToString("dd.MM.yyyy") ?? "";
         set
         {
-            if (string.IsNullOrWhiteSpace(value)) { NrsDate = null; OnPropertyChanged(nameof(NrsDateText)); return; }
-            if (TryParseDate(value, out var dt))
-            {
-                NrsDate = dt;
-                OnPropertyChanged(nameof(NrsDateText));
-            }
+            if (string.IsNullOrWhiteSpace(value)) { NrsDate = null; return; }
+            if (TryParseDate(value, out var dt)) NrsDate = dt;
         }
     }
 
@@ -178,12 +170,8 @@ public class Employee : INotifyPropertyChanged
         get => WorkStartDate?.ToString("dd.MM.yyyy") ?? "";
         set
         {
-            if (string.IsNullOrWhiteSpace(value)) { WorkStartDate = null; OnPropertyChanged(nameof(WorkStartDateText)); return; }
-            if (TryParseDate(value, out var dt))
-            {
-                WorkStartDate = dt;
-                OnPropertyChanged(nameof(WorkStartDateText));
-            }
+            if (string.IsNullOrWhiteSpace(value)) { WorkStartDate = null; return; }
+            if (TryParseDate(value, out var dt)) WorkStartDate = dt;
         }
     }
 
@@ -193,12 +181,8 @@ public class Employee : INotifyPropertyChanged
         get => WorkEndDate?.ToString("dd.MM.yyyy") ?? "";
         set
         {
-            if (string.IsNullOrWhiteSpace(value)) { WorkEndDate = null; OnPropertyChanged(nameof(WorkEndDateText)); return; }
-            if (TryParseDate(value, out var dt))
-            {
-                WorkEndDate = dt;
-                OnPropertyChanged(nameof(WorkEndDateText));
-            }
+            if (string.IsNullOrWhiteSpace(value)) { WorkEndDate = null; return; }
+            if (TryParseDate(value, out var dt)) WorkEndDate = dt;
         }
     }
 

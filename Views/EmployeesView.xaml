@@ -150,7 +150,8 @@
         <Border Grid.Row="0" Grid.RowSpan="3"
                 Background="#CC000000"
                 Visibility="{Binding IsEditing, Converter={StaticResource BoolToVisibility}}"
-                Panel.ZIndex="100">
+                Panel.ZIndex="100"
+                KeyDown="Modal_KeyDown">
             <Border Background="{DynamicResource MainGradient}"
                     BorderBrush="{DynamicResource GlassBorderBrush}"
                     BorderThickness="1"
@@ -201,16 +202,24 @@
                         </Grid>
 
                         <TextBlock Text="Роль:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
-                        <ComboBox SelectedItem="{Binding EditingEmployee.Role}" Margin="0,0,0,12"
-                                  Style="{StaticResource GlassComboBox}"
-                                  ItemTemplate="{StaticResource RoleItemTemplate}">
-                            <models:RepresentativeType>SK_Zakazchika</models:RepresentativeType>
-                            <models:RepresentativeType>GenPodryadchik</models:RepresentativeType>
-                            <models:RepresentativeType>SK_GenPodryadchika</models:RepresentativeType>
-                            <models:RepresentativeType>Podryadchik</models:RepresentativeType>
-                            <models:RepresentativeType>AvtorskiyNadzor</models:RepresentativeType>
-                            <models:RepresentativeType>InoeLico</models:RepresentativeType>
-                        </ComboBox>
+                        <Border Background="#60FFFFFF"
+                                BorderBrush="{DynamicResource GlassBorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="2"
+                                Margin="0,0,0,12">
+                            <ComboBox SelectedItem="{Binding EditingEmployee.Role}"
+                                      Style="{StaticResource GlassComboBox}"
+                                      ItemTemplate="{StaticResource RoleItemTemplate}"
+                                      Background="Transparent">
+                                <models:RepresentativeType>SK_Zakazchika</models:RepresentativeType>
+                                <models:RepresentativeType>GenPodryadchik</models:RepresentativeType>
+                                <models:RepresentativeType>SK_GenPodryadchika</models:RepresentativeType>
+                                <models:RepresentativeType>Podryadchik</models:RepresentativeType>
+                                <models:RepresentativeType>AvtorskiyNadzor</models:RepresentativeType>
+                                <models:RepresentativeType>InoeLico</models:RepresentativeType>
+                            </ComboBox>
+                        </Border>
 
                         <TextBlock Text="ФИО:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextPrimaryBrush}"/>
                         <TextBox Text="{Binding EditingEmployee.FullName, UpdateSourceTrigger=PropertyChanged}"
@@ -232,15 +241,21 @@
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <ComboBox Grid.Column="0"
-                                      ItemsSource="{Binding AvailableOrganizations}"
-                                      SelectedItem="{Binding SelectedOrganizationForEmployee, Mode=TwoWay}"
-                                      Style="{StaticResource GlassComboBox}"
-                                      DisplayMemberPath="Name"
-                                      IsEditable="False"
-                                      SelectionChanged="OrganizationComboBox_SelectionChanged"
-                                      ToolTip="Выберите организацию из списка">
-                            </ComboBox>
+                            <Border Grid.Column="0"
+                                    Background="#60FFFFFF"
+                                    BorderBrush="{DynamicResource GlassBorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="8"
+                                    Padding="2">
+                                <ComboBox ItemsSource="{Binding AvailableOrganizations}"
+                                          SelectedItem="{Binding SelectedOrganizationForEmployee, Mode=TwoWay}"
+                                          Style="{StaticResource GlassComboBox}"
+                                          DisplayMemberPath="Name"
+                                          IsEditable="False"
+                                          SelectionChanged="OrganizationComboBox_SelectionChanged"
+                                          ToolTip="Выберите организацию из списка"
+                                          Background="Transparent"/>
+                            </Border>
                             <Button Grid.Column="1" Content="+"
                                     Command="{Binding AddOrganizationCommand}"
                                     Padding="8,6"
@@ -270,10 +285,11 @@
                                        Foreground="{DynamicResource TextPrimaryBrush}"
                                        VerticalAlignment="Center" Margin="0,0,5,0"/>
                             <TextBox Grid.Column="3" x:Name="OrderDateTextBox"
-                                     Text="{Binding EditingEmployee.OrderDateText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                     Text="{Binding EditingEmployee.OrderDateText, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
                                      Style="{StaticResource GlassTextBox}"
                                      Padding="5" Width="100" Margin="0,0,5,0"
-                                     ToolTip="Введите дату: 13.08.2015, 08.2015 или 2015"/>
+                                     ToolTip="Введите дату: 12112020, 12.11.2020, 12,11,20"
+                                     behaviors:DateTextBoxBehavior.EnableDateFormatting="True"/>
                             <Button Grid.Column="4" x:Name="BtnPickOrderDate" Content="📅" Padding="6,4"
                                     Style="{StaticResource GlassButton}"
                                     Click="BtnPickOrderDate_Click" ToolTip="Выбрать дату"/>
@@ -309,10 +325,11 @@
                                        Foreground="{DynamicResource TextPrimaryBrush}"
                                        VerticalAlignment="Center" Margin="0,0,5,0"/>
                             <TextBox Grid.Column="3" x:Name="NrsDateTextBox"
-                                     Text="{Binding EditingEmployee.NrsDateText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                     Text="{Binding EditingEmployee.NrsDateText, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
                                      Style="{StaticResource GlassTextBox}"
                                      Padding="5" Width="100" Margin="0,0,5,0"
-                                     ToolTip="Введите дату: 13.08.2015, 08.2015 или 2015"/>
+                                     ToolTip="Введите дату: 12112020, 12.11.2020, 12,11,20"
+                                     behaviors:DateTextBoxBehavior.EnableDateFormatting="True"/>
                             <Button Grid.Column="4" x:Name="BtnPickNrsDate" Content="📅" Padding="6,4"
                                     Style="{StaticResource GlassButton}"
                                     Click="BtnPickNrsDate_Click" ToolTip="Выбрать дату"/>
@@ -346,10 +363,11 @@
                                        Foreground="{DynamicResource TextPrimaryBrush}"
                                        VerticalAlignment="Center" Margin="0,0,5,0"/>
                             <TextBox Grid.Column="1" x:Name="WorkStartDateTextBox"
-                                     Text="{Binding EditingEmployee.WorkStartDateText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                     Text="{Binding EditingEmployee.WorkStartDateText, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
                                      Style="{StaticResource GlassTextBox}"
                                      Padding="5" Width="100" Margin="0,0,5,0"
-                                     ToolTip="Введите дату: 13.08.2015, 08.2015 или 2015"/>
+                                     ToolTip="Введите дату: 12112020, 12.11.2020, 12,11,20"
+                                     behaviors:DateTextBoxBehavior.EnableDateFormatting="True"/>
                             <Button Grid.Column="2" x:Name="BtnPickWorkStartDate" Content="📅" Padding="6,4"
                                     Style="{StaticResource GlassButton}"
                                     Click="BtnPickWorkStartDate_Click" ToolTip="Выбрать дату"/>
@@ -366,11 +384,12 @@
                                        Foreground="{DynamicResource TextPrimaryBrush}"
                                        VerticalAlignment="Center" Margin="10,0,5,0"/>
                             <TextBox Grid.Column="4" x:Name="WorkEndDateTextBox"
-                                     Text="{Binding EditingEmployee.WorkEndDateText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                     Text="{Binding EditingEmployee.WorkEndDateText, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
                                      Style="{StaticResource GlassTextBox}"
                                      Padding="5" Margin="0,0,5,0"
                                      Width="100"
-                                     ToolTip="Введите дату: 13.08.2015, 08.2015 или 2015"/>
+                                     ToolTip="Введите дату: 12112020, 12.11.2020, 12,11,20"
+                                     behaviors:DateTextBoxBehavior.EnableDateFormatting="True"/>
                             <Button Grid.Column="5" x:Name="BtnPickWorkEndDate" Content="📅" Padding="6,4"
                                     Style="{StaticResource GlassButton}"
                                     Click="BtnPickWorkEndDate_Click" ToolTip="Выбрать дату"/>
@@ -408,7 +427,7 @@
                                 Drop="OrderDropZone_Drop">
                             <StackPanel>
                                 <TextBlock Text="Перетащите файл сюда или нажмите кнопку:"
-                                           Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12" Margin="0,0,0,8" Opacity="0.7"/>
+                                           Foreground="{DynamicResource TextPrimaryBrush}" FontSize="12" Margin="0,0,0,8" Opacity="0.7"/>
                                 <StackPanel Orientation="Horizontal">
                                     <Button Content="📎 Прикрепить приказ"
                                             Command="{Binding AttachOrderFileCommand}"

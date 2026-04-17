@@ -51,13 +51,70 @@ public partial class EmployeesView : UserControl
 
             var window = new Window
             {
-                Title = "Добавить организацию",
+                Title = "Справочник организаций",
                 Content = new OrganizationsView { DataContext = orgVm },
-                Width = 800,
-                Height = 500,
+                Width = 900,
+                Height = 550,
                 WindowStartupLocation = WindowStartupLocation.CenterOwner,
-                Owner = Window.GetWindow(this)
+                Owner = Window.GetWindow(this),
+                Background = System.Windows.Application.Current.Resources["GlassBrush"] as System.Windows.Media.Brush,
+                WindowStyle = WindowStyle.None,
+                AllowsTransparency = true,
+                ResizeMode = ResizeMode.NoResize
             };
+
+            var mainGrid = new Grid();
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            
+            var header = new Border 
+            { 
+                Background = System.Windows.Application.Current.Resources["GlassBrush"] as System.Windows.Media.Brush,
+                Padding = new Thickness(15),
+                Cursor = System.Windows.Input.Cursors.Hand
+            };
+            var headerContent = new Grid();
+            headerContent.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            headerContent.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            
+            var title = new TextBlock 
+            { 
+                Text = "🏢 Справочник организаций", 
+                FontSize = 16, 
+                FontWeight = FontWeights.Bold,
+                Foreground = System.Windows.Application.Current.Resources["TextPrimaryBrush"] as System.Windows.Media.Brush,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            
+            var closeBtn = new Button 
+            { 
+                Content = "✕", 
+                Width = 30, 
+                Height = 30,
+                Background = System.Windows.Media.Brushes.Transparent,
+                BorderThickness = new Thickness(0),
+                FontSize = 14,
+                Cursor = System.Windows.Input.Cursors.Hand
+            };
+            closeBtn.Click += (s, args) => window.Close();
+            
+            Grid.SetColumn(title, 0);
+            Grid.SetColumn(closeBtn, 1);
+            headerContent.Children.Add(title);
+            headerContent.Children.Add(closeBtn);
+            header.Child = headerContent;
+            Grid.SetRow(header, 0);
+            
+            var content = window.Content as System.Windows.Controls.UserControl;
+            window.Content = null;
+            Grid.SetRow(content, 1);
+            mainGrid.Children.Add(header);
+            mainGrid.Children.Add(content);
+            
+            window.Content = mainGrid;
+            
+            header.MouseLeftButtonDown += (s, args) => { if (args.LeftButton == System.Windows.Input.MouseButtonState.Pressed) window.DragMove(); };
+            
             window.ShowDialog();
 
             await vm.LoadOrganizationsFromDirectoryAsync();
@@ -195,6 +252,15 @@ public partial class EmployeesView : UserControl
             vm.EditingEmployee.WorkEndDateText = vm.EditingEmployee.WorkEndDate.Value.ToString("dd.MM.yyyy");
             vm.RefreshEditingEmployee();
             WorkEndDateCalendarPopup.IsOpen = false;
+        }
+    }
+
+    private void Modal_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Escape && DataContext is EmployeesViewModel vm && vm.IsEditing)
+        {
+            vm.CancelEditCommand.Execute(null);
+            e.Handled = true;
         }
     }
 }

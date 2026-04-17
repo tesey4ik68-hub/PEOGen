@@ -380,9 +380,35 @@ public partial class EmployeesViewModel : ViewModelBase
     }
 
     [RelayCommand]
-    private void CancelEdit()
+    public void CancelEdit()
     {
-        // Удаляем временный файл при отмене
+        if (!string.IsNullOrEmpty(EditingEmployee.FullName) || 
+            !string.IsNullOrEmpty(EditingEmployee.Position) ||
+            !string.IsNullOrEmpty(EditingEmployee.OrganizationName) ||
+            !string.IsNullOrEmpty(EditingEmployee.OrderNumber) ||
+            EditingEmployee.OrderDate.HasValue ||
+            EditingEmployee.NrsDate.HasValue ||
+            EditingEmployee.WorkStartDate.HasValue ||
+            EditingEmployee.WorkEndDate.HasValue ||
+            !string.IsNullOrEmpty(_tempOrderFilePath))
+        {
+            var result = System.Windows.MessageBox.Show(
+                "Сохранить изменения перед выходом?",
+                "Подтверждение",
+                System.Windows.MessageBoxButton.YesNoCancel,
+                System.Windows.MessageBoxImage.Question);
+
+            if (result == System.Windows.MessageBoxResult.Yes)
+            {
+                SaveEmployeeCommand.Execute(null);
+                return;
+            }
+            else if (result == System.Windows.MessageBoxResult.Cancel)
+            {
+                return;
+            }
+        }
+
         if (!string.IsNullOrEmpty(_tempOrderFilePath) && File.Exists(_tempOrderFilePath))
         {
             try { File.Delete(_tempOrderFilePath); } catch { /* игнорируем */ }
