@@ -132,14 +132,19 @@
                 <DataGridTemplateColumn Header="Файл" Width="60">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
-                            <Button Content="📎"
-                                    ToolTip="{Binding OrderFileName, Mode=OneWay}"
-                                    Command="{Binding DataContext.OpenOrderFileCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                    Visibility="{Binding OrderFileName, Mode=OneWay, Converter={StaticResource NullToBoolConverter}, ConverterParameter=Inverted}"
-                                    Padding="2"
-                                    BorderThickness="0"
-                                    Background="Transparent"
-                                    Cursor="Hand"/>
+                            <Grid>
+                                <TextBlock Text="" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                <Button Content="📎"
+                                        ToolTip="{Binding OrderFileName, Mode=OneWay}"
+                                        Command="{Binding DataContext.OpenOrderFileCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                        Visibility="{Binding OrderFileName, Mode=OneWay, Converter={StaticResource NullToBoolConverter}}"
+                                        Padding="8"
+                                        BorderThickness="0"
+                                        Background="Transparent"
+                                        Cursor="Hand"
+                                        HorizontalAlignment="Stretch"
+                                        VerticalAlignment="Stretch"/>
+                            </Grid>
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
@@ -151,7 +156,8 @@
                 Background="#CC000000"
                 Visibility="{Binding IsEditing, Converter={StaticResource BoolToVisibility}}"
                 Panel.ZIndex="100"
-                KeyDown="Modal_KeyDown">
+                KeyDown="Modal_KeyDown"
+                IsVisibleChanged="ModalBorder_IsVisibleChanged">
             <Border Background="{DynamicResource MainGradient}"
                     BorderBrush="{DynamicResource GlassBorderBrush}"
                     BorderThickness="1"

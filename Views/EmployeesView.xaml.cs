@@ -263,4 +263,30 @@ public partial class EmployeesView : UserControl
             e.Handled = true;
         }
     }
+
+    private void ModalBorder_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
+    {
+        if (e.NewValue is true && sender is Border border)
+        {
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                var scrollViewer = FindVisualChild<ScrollViewer>(border);
+                scrollViewer?.ScrollToTop();
+            }), System.Windows.Threading.DispatcherPriority.Loaded);
+        }
+    }
+
+    private static T? FindVisualChild<T>(DependencyObject parent) where T : DependencyObject
+    {
+        for (int i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(parent); i++)
+        {
+            var child = System.Windows.Media.VisualTreeHelper.GetChild(parent, i);
+            if (child is T result)
+                return result;
+            var childOfChild = FindVisualChild<T>(child);
+            if (childOfChild != null)
+                return childOfChild;
+        }
+        return null;
+    }
 }
