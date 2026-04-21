@@ -46,31 +46,34 @@
             </StackPanel>
         </Border>
 
-        <!-- Таблица актов с горизонтальным скроллом -->
-        <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
-            <DataGrid x:Name="MyDataGrid"
-                      ItemsSource="{Binding Acts}"
-                      SelectedItem="{Binding SelectedAct}"
-                      AutoGenerateColumns="False"
-                      CanUserAddRows="False"
-                      CanUserDeleteRows="False"
-                      IsReadOnly="False"
-                      AlternatingRowBackground="#F9F9F9"
-                      GridLinesVisibility="Horizontal"
-                      HeadersVisibility="Column"
-                      SelectionMode="Extended"
-                      SelectionUnit="FullRow"
-                      HorizontalScrollBarVisibility="Disabled"
-                      MinRowHeight="40"
-                      behaviors:DataGridAutoSizeColumnsBehavior.IsEnabled="True"
-                      behaviors:DataGridCellTooltipBehavior.IsEnabled="True"
-                      behaviors:DataGridAutoRowHeightBehavior.IsEnabled="True">
+        <!-- Таблица актов -->
+        <DataGrid x:Name="MyDataGrid"
+                  Grid.Row="1"
+                  ItemsSource="{Binding Acts}"
+                  SelectedItem="{Binding SelectedAct}"
+                  AutoGenerateColumns="False"
+                  CanUserAddRows="False"
+                  CanUserDeleteRows="False"
+                  IsReadOnly="False"
+                  AlternatingRowBackground="#F9F9F9"
+                  GridLinesVisibility="Horizontal"
+                  HeadersVisibility="Column"
+                  SelectionMode="Extended"
+                  SelectionUnit="FullRow"
+                  HorizontalScrollBarVisibility="Auto"
+                  VerticalScrollBarVisibility="Auto"
+                  MinRowHeight="40"
+                  EnableRowVirtualization="False"
+                  EnableColumnVirtualization="False"
+                  behaviors:DataGridAutoSizeColumnsBehavior.IsEnabled="True"
+                  behaviors:DataGridCellTooltipBehavior.IsEnabled="True"
+                  behaviors:DataGridAutoRowHeightBehavior.IsEnabled="True">
 
                 <DataGrid.Resources>
-                    <!-- Стиль для TextBlock в ячейках — перенос текста + автоматическая высота -->
+                    <!-- Стиль для TextBlock в ячейках — перенос текста -->
                     <Style TargetType="TextBlock">
                         <Setter Property="TextWrapping" Value="Wrap"/>
-                        <Setter Property="Padding" Value="2"/>
+                        <Setter Property="Padding" Value="3,2"/>
                         <Setter Property="VerticalAlignment" Value="Center"/>
                     </Style>
 
@@ -594,6 +597,5 @@
                     </DataGridTemplateColumn>
                 </DataGrid.Columns>
             </DataGrid>
-        </ScrollViewer>
     </Grid>
 </UserControl>
