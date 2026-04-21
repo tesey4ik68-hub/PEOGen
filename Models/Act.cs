@@ -258,13 +258,4 @@ public class Act
             return orgs.Count > 0 ? string.Join(", ", orgs) : "Не выбрано";
         }
     }
-
-    [NotMapped]
-    public string StandardReferenceDisplay
-    {
-        get
-        {
-            return !string.IsNullOrEmpty(StandardReference) ? StandardReference : "Не выбрано";
-        }
-    }
 }

@@ -61,9 +61,10 @@
                       SelectionMode="Extended"
                       SelectionUnit="FullRow"
                       HorizontalScrollBarVisibility="Disabled"
-                      MinRowHeight="28"
+                      MinRowHeight="40"
                       behaviors:DataGridAutoSizeColumnsBehavior.IsEnabled="True"
-                      behaviors:DataGridCellTooltipBehavior.IsEnabled="True">
+                      behaviors:DataGridCellTooltipBehavior.IsEnabled="True"
+                      behaviors:DataGridAutoRowHeightBehavior.IsEnabled="True">
 
                 <DataGrid.Resources>
                     <!-- Стиль для TextBlock в ячейках — перенос текста + автоматическая высота -->
@@ -73,11 +74,19 @@
                         <Setter Property="VerticalAlignment" Value="Center"/>
                     </Style>
 
-                    <!-- Стиль для редактирования с переносом -->
+                    <!-- Стиль для редактирования TextBox (Excel-стиль: перенос текста, без рамки) -->
                     <Style x:Key="WrapTextBoxStyle" TargetType="TextBox">
                         <Setter Property="TextWrapping" Value="Wrap"/>
                         <Setter Property="AcceptsReturn" Value="True"/>
-                        <Setter Property="VerticalScrollBarVisibility" Value="Auto"/>
+                        <Setter Property="BorderThickness" Value="0"/>
+                        <Setter Property="Background" Value="Transparent"/>
+                        <Setter Property="Padding" Value="3,2"/>
+                        <Setter Property="VerticalScrollBarVisibility" Value="Disabled"/>
+                        <Setter Property="HorizontalScrollBarVisibility" Value="Disabled"/>
+                        <Setter Property="FontSize" Value="12"/>
+                        <Setter Property="VerticalContentAlignment" Value="Top"/>
+                        <Setter Property="Height" Value="NaN"/>
+                        <Setter Property="MinHeight" Value="35"/>
                     </Style>
                 </DataGrid.Resources>
 
@@ -112,13 +121,29 @@
 
                     <!-- ==================== 2. № П/П ==================== -->
 
-                    <DataGridTextColumn Header="№ п/п" Width="60"
-                                        Binding="{Binding SortOrder, UpdateSourceTrigger=PropertyChanged}"/>
+                    <DataGridTemplateColumn Header="№ п/п" Width="60">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding SortOrder}" VerticalAlignment="Center" Margin="3"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                        <DataGridTemplateColumn.CellEditingTemplate>
+                            <DataTemplate>
+                                <TextBox Text="{Binding SortOrder, UpdateSourceTrigger=PropertyChanged}"
+                                         Style="{StaticResource WrapTextBoxStyle}"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellEditingTemplate>
+                    </DataGridTemplateColumn>
 
                     <!-- ==================== 3. № АКТА (было "Итог №") ==================== -->
 
-                    <DataGridTextColumn Header="№ акта" Width="110"
-                                        Binding="{Binding FinalActNumber}" IsReadOnly="True" Foreground="#555"/>
+                    <DataGridTemplateColumn Header="№ акта" Width="110">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding FinalActNumber}" VerticalAlignment="Center" Margin="3" Foreground="#555" TextWrapping="Wrap"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
 
                     <!-- ==================== 4. ТИП ==================== -->
 
@@ -155,8 +180,19 @@
 
                     <!-- ==================== 5. НОМЕР АКТА ==================== -->
 
-                    <DataGridTextColumn Header="Номер акта" Width="80"
-                                        Binding="{Binding ActNumber, UpdateSourceTrigger=PropertyChanged}"/>
+                    <DataGridTemplateColumn Header="Номер акта" Width="80">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding ActNumber}" VerticalAlignment="Center" Margin="3" TextWrapping="Wrap"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                        <DataGridTemplateColumn.CellEditingTemplate>
+                            <DataTemplate>
+                                <TextBox Text="{Binding ActNumber, UpdateSourceTrigger=PropertyChanged}"
+                                        Style="{StaticResource WrapTextBoxStyle}"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellEditingTemplate>
+                    </DataGridTemplateColumn>
 
                     <!-- ==================== 6. НАИМЕНОВАНИЕ РАБОТ ==================== -->
 
@@ -203,18 +239,51 @@
 
                     <!-- ==================== 8. ИНТЕРВАЛ ==================== -->
 
-                    <DataGridTextColumn Header="Интервал" Width="100"
-                                        Binding="{Binding Interval, UpdateSourceTrigger=PropertyChanged}"/>
+                    <DataGridTemplateColumn Header="Интервал" Width="100">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Interval}" VerticalAlignment="Center" Margin="3" TextWrapping="Wrap"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                        <DataGridTemplateColumn.CellEditingTemplate>
+                            <DataTemplate>
+                                <TextBox Text="{Binding Interval, UpdateSourceTrigger=PropertyChanged}"
+                                        Style="{StaticResource WrapTextBoxStyle}"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellEditingTemplate>
+                    </DataGridTemplateColumn>
 
                     <!-- ==================== 9. ОБЪЁМ ==================== -->
 
-                    <DataGridTextColumn Header="Объём" Width="80"
-                                        Binding="{Binding Volume, UpdateSourceTrigger=PropertyChanged}"/>
+                    <DataGridTemplateColumn Header="Объём" Width="80">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Volume}" VerticalAlignment="Center" Margin="3" TextWrapping="Wrap"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                        <DataGridTemplateColumn.CellEditingTemplate>
+                            <DataTemplate>
+                                <TextBox Text="{Binding Volume, UpdateSourceTrigger=PropertyChanged}"
+                                        Style="{StaticResource WrapTextBoxStyle}"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellEditingTemplate>
+                    </DataGridTemplateColumn>
 
                     <!-- ==================== 10. ЕД.ИЗМ. ==================== -->
 
-                    <DataGridTextColumn Header="Ед.изм." Width="70"
-                                        Binding="{Binding UnitOfMeasure, UpdateSourceTrigger=PropertyChanged}"/>
+                    <DataGridTemplateColumn Header="Ед.изм." Width="70">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding UnitOfMeasure}" VerticalAlignment="Center" Margin="3" TextWrapping="Wrap"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                        <DataGridTemplateColumn.CellEditingTemplate>
+                            <DataTemplate>
+                                <TextBox Text="{Binding UnitOfMeasure, UpdateSourceTrigger=PropertyChanged}"
+                                        Style="{StaticResource WrapTextBoxStyle}"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellEditingTemplate>
+                    </DataGridTemplateColumn>
 
                     <!-- ==================== 11. ДАТА НАЧАЛА ==================== -->
 
@@ -298,7 +367,7 @@
 
                     <!-- ==================== 16. МАТЕРИАЛЫ ==================== -->
 
-                    <DataGridTemplateColumn Header="Материалы" Width="130">
+                    <DataGridTemplateColumn Header="Материалы" Width="180">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <Button Content="{Binding MaterialsDisplay}"
@@ -314,7 +383,7 @@
 
                     <!-- ==================== 17. СХЕМЫ ==================== -->
 
-                    <DataGridTemplateColumn Header="Схемы" Width="130">
+                    <DataGridTemplateColumn Header="Схемы" Width="180">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <Button Content="{Binding SchemasDisplay}"
@@ -330,14 +399,30 @@
 
                     <!-- ==================== 18. ПРОЕКТ ==================== -->
 
-                    <DataGridTemplateColumn Header="Проект" Width="130">
+                    <DataGridTemplateColumn Header="Проект" Width="180">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <Button Content="{Binding ProjectDocsDisplay}"
                                         Command="{Binding DataContext.EditProjectDocsCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                         CommandParameter="{Binding}"
                                         ToolTip="Редактировать проектную документацию акта"
-Style="{StaticResource GlassButton}"
+                                        Style="{StaticResource GlassButton}"
+                                        HorizontalContentAlignment="Center"
+                                        Margin="3"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+
+                    <!-- ==================== 19. НОРМАТИВЫ ==================== -->
+
+                    <DataGridTemplateColumn Header="Нормативы" Width="180">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <Button Content="{Binding StandardReferenceDisplay}"
+                                        Command="{Binding DataContext.EditRegulatoryDocsCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                        CommandParameter="{Binding}"
+                                        ToolTip="Редактировать нормативные документы акта"
+                                        Style="{StaticResource GlassButton}"
                                         HorizontalContentAlignment="Center"
                                         Margin="3"/>
                             </DataTemplate>
@@ -414,33 +499,99 @@ Style="{StaticResource GlassButton}"
 
                     <!-- ==================== 24. ПРИЛОЖЕНИЯ ВРУЧНУЮ ==================== -->
 
-                    <DataGridTextColumn Header="Приложения вручную" Width="130"
-                                        Binding="{Binding Appendix, UpdateSourceTrigger=PropertyChanged}"/>
+                    <DataGridTemplateColumn Header="Приложения вручную" Width="130">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Appendix}" VerticalAlignment="Center" Margin="3" TextWrapping="Wrap"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                        <DataGridTemplateColumn.CellEditingTemplate>
+                            <DataTemplate>
+                                <TextBox Text="{Binding Appendix, UpdateSourceTrigger=PropertyChanged}"
+                                        Style="{StaticResource WrapTextBoxStyle}"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellEditingTemplate>
+                    </DataGridTemplateColumn>
 
                     <!-- ==================== 25. ЭКЗ. ==================== -->
 
-                    <DataGridTextColumn Header="Экз." Width="50"
-                                        Binding="{Binding CopiesCount, UpdateSourceTrigger=PropertyChanged}"/>
+                    <DataGridTemplateColumn Header="Экз." Width="50">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding CopiesCount}" VerticalAlignment="Center" Margin="3" TextWrapping="Wrap"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                        <DataGridTemplateColumn.CellEditingTemplate>
+                            <DataTemplate>
+                                <TextBox Text="{Binding CopiesCount, UpdateSourceTrigger=PropertyChanged}"
+                                        Style="{StaticResource WrapTextBoxStyle}"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellEditingTemplate>
+                    </DataGridTemplateColumn>
 
                     <!-- ==================== 26. ДОП. СВЕДЕНИЯ ==================== -->
 
-                    <DataGridTextColumn Header="Доп. сведения" Width="140"
-                                        Binding="{Binding AdditionalInfo, UpdateSourceTrigger=PropertyChanged}"/>
+                    <DataGridTemplateColumn Header="Доп. сведения" Width="140">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding AdditionalInfo}" VerticalAlignment="Center" Margin="3" TextWrapping="Wrap"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                        <DataGridTemplateColumn.CellEditingTemplate>
+                            <DataTemplate>
+                                <TextBox Text="{Binding AdditionalInfo, UpdateSourceTrigger=PropertyChanged}"
+                                        Style="{StaticResource WrapTextBoxStyle}"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellEditingTemplate>
+                    </DataGridTemplateColumn>
 
                     <!-- ==================== 27. % НАГРУЗКИ ==================== -->
 
-                    <DataGridTextColumn Header="% нагрузки" Width="80"
-                                        Binding="{Binding LoadPercentage, UpdateSourceTrigger=PropertyChanged}"/>
+                    <DataGridTemplateColumn Header="% нагрузки" Width="80">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding LoadPercentage}" VerticalAlignment="Center" Margin="3" TextWrapping="Wrap"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                        <DataGridTemplateColumn.CellEditingTemplate>
+                            <DataTemplate>
+                                <TextBox Text="{Binding LoadPercentage, UpdateSourceTrigger=PropertyChanged}"
+                                        Style="{StaticResource WrapTextBoxStyle}"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellEditingTemplate>
+                    </DataGridTemplateColumn>
 
                     <!-- ==================== 28. УСЛОВИЯ НАГРУЖЕНИЯ ==================== -->
 
-                    <DataGridTextColumn Header="Условия нагружения" Width="160"
-                                        Binding="{Binding FullLoadConditions, UpdateSourceTrigger=PropertyChanged}"/>
+                    <DataGridTemplateColumn Header="Условия нагружения" Width="160">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding FullLoadConditions}" VerticalAlignment="Center" Margin="3" TextWrapping="Wrap"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                        <DataGridTemplateColumn.CellEditingTemplate>
+                            <DataTemplate>
+                                <TextBox Text="{Binding FullLoadConditions, UpdateSourceTrigger=PropertyChanged}"
+                                        Style="{StaticResource WrapTextBoxStyle}"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellEditingTemplate>
+                    </DataGridTemplateColumn>
 
                     <!-- ==================== 29. СТАТУС ==================== -->
 
-                    <DataGridTextColumn Header="Статус" Width="90"
-                                        Binding="{Binding Status, UpdateSourceTrigger=PropertyChanged}"/>
+                    <DataGridTemplateColumn Header="Статус" Width="90">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Status}" VerticalAlignment="Center" Margin="3" TextWrapping="Wrap"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                        <DataGridTemplateColumn.CellEditingTemplate>
+                            <DataTemplate>
+                                <TextBox Text="{Binding Status, UpdateSourceTrigger=PropertyChanged}"
+                                        Style="{StaticResource WrapTextBoxStyle}"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellEditingTemplate>
+                    </DataGridTemplateColumn>
                 </DataGrid.Columns>
             </DataGrid>
         </ScrollViewer>
