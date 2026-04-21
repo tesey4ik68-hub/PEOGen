@@ -77,7 +77,7 @@
                         <Setter Property="VerticalAlignment" Value="Center"/>
                     </Style>
 
-                    <!-- Стиль для редактирования TextBox (Excel-стиль: перенос текста, без рамки) -->
+                    <!-- Стиль для редактирования TextBox (Excel-стиль: перенос текста, без рамки, с автовысотой) -->
                     <Style x:Key="WrapTextBoxStyle" TargetType="TextBox">
                         <Setter Property="TextWrapping" Value="Wrap"/>
                         <Setter Property="AcceptsReturn" Value="True"/>
@@ -90,6 +90,7 @@
                         <Setter Property="VerticalContentAlignment" Value="Top"/>
                         <Setter Property="Height" Value="NaN"/>
                         <Setter Property="MinHeight" Value="35"/>
+                        <Setter Property="behaviors:TextBoxAutoHeightBehavior.IsEnabled" Value="True"/>
                     </Style>
                 </DataGrid.Resources>
 
@@ -208,8 +209,7 @@
                         <DataGridTemplateColumn.CellEditingTemplate>
                             <DataTemplate>
                                 <TextBox Text="{Binding WorkName, UpdateSourceTrigger=PropertyChanged}"
-                                         Style="{StaticResource WrapTextBoxStyle}"
-                                         MaxHeight="80"/>
+                                        Style="{StaticResource WrapTextBoxStyle}"/>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellEditingTemplate>
                     </DataGridTemplateColumn>
@@ -245,7 +245,7 @@
                     <DataGridTemplateColumn Header="Интервал" Width="100">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
-                                <TextBlock Text="{Binding Interval}" VerticalAlignment="Center" Margin="3" TextWrapping="Wrap"/>
+                                <TextBlock Text="{Binding Interval}" VerticalAlignment="Center" Margin="3" TextWrapping="Wrap" MaxWidth="90"/>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                         <DataGridTemplateColumn.CellEditingTemplate>
