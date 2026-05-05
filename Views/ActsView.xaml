@@ -65,7 +65,7 @@
                   MinRowHeight="40"
                   EnableRowVirtualization="False"
                   EnableColumnVirtualization="False"
-                  behaviors:DataGridAutoSizeColumnsBehavior.IsEnabled="True"
+                  RowHeight="NaN"
                   behaviors:DataGridCellTooltipBehavior.IsEnabled="True"
                   behaviors:DataGridAutoRowHeightBehavior.IsEnabled="True">
 
@@ -141,10 +141,10 @@
 
                     <!-- ==================== 3. № АКТА (было "Итог №") ==================== -->
 
-                    <DataGridTemplateColumn Header="№ акта" Width="110">
+                    <DataGridTemplateColumn Header="№ акта" Width="120" MinWidth="90" MaxWidth="180">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
-                                <TextBlock Text="{Binding FinalActNumber}" VerticalAlignment="Center" Margin="3" Foreground="#555" TextWrapping="Wrap"/>
+                                <TextBlock Text="{Binding FinalActNumber}" TextWrapping="Wrap" VerticalAlignment="Stretch" Margin="3" Foreground="#555"/>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
@@ -184,10 +184,10 @@
 
                     <!-- ==================== 5. НОМЕР АКТА ==================== -->
 
-                    <DataGridTemplateColumn Header="Номер акта" Width="80">
+                    <DataGridTemplateColumn Header="Номер акта" Width="100" MinWidth="70" MaxWidth="150">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
-                                <TextBlock Text="{Binding ActNumber}" VerticalAlignment="Center" Margin="3" TextWrapping="Wrap"/>
+                                <TextBlock Text="{Binding ActNumber}" TextWrapping="Wrap" VerticalAlignment="Stretch" Margin="3"/>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                         <DataGridTemplateColumn.CellEditingTemplate>
@@ -200,10 +200,10 @@
 
                     <!-- ==================== 6. НАИМЕНОВАНИЕ РАБОТ ==================== -->
 
-                    <DataGridTemplateColumn Header="Наименование работ" Width="200">
+                    <DataGridTemplateColumn Header="Наименование работ" Width="240" MinWidth="180" MaxWidth="350">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
-                                <TextBlock Text="{Binding WorkName}" TextWrapping="Wrap" VerticalAlignment="Center" Margin="3" MaxWidth="190" ToolTip="{Binding WorkName, Mode=OneWay}"/>
+                                <TextBlock Text="{Binding WorkName}" TextWrapping="Wrap" VerticalAlignment="Stretch" Margin="3" MaxWidth="330"/>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                         <DataGridTemplateColumn.CellEditingTemplate>
@@ -242,10 +242,10 @@
 
                     <!-- ==================== 8. ИНТЕРВАЛ ==================== -->
 
-                    <DataGridTemplateColumn Header="Интервал" Width="100">
+                    <DataGridTemplateColumn Header="Интервал" Width="120" MinWidth="90" MaxWidth="180">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
-                                <TextBlock Text="{Binding Interval}" VerticalAlignment="Center" Margin="3" TextWrapping="Wrap" MaxWidth="90"/>
+                                <TextBlock Text="{Binding Interval}" TextWrapping="Wrap" VerticalAlignment="Stretch" Margin="3" MaxWidth="165"/>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                         <DataGridTemplateColumn.CellEditingTemplate>
@@ -258,10 +258,10 @@
 
                     <!-- ==================== 9. ОБЪЁМ ==================== -->
 
-                    <DataGridTemplateColumn Header="Объём" Width="80">
+                    <DataGridTemplateColumn Header="Объём" Width="80" MinWidth="60" MaxWidth="120">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
-                                <TextBlock Text="{Binding Volume}" VerticalAlignment="Center" Margin="3" TextWrapping="Wrap"/>
+                                <TextBlock Text="{Binding Volume}" TextWrapping="Wrap" VerticalAlignment="Stretch" Margin="3"/>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                         <DataGridTemplateColumn.CellEditingTemplate>
@@ -274,10 +274,10 @@
 
                     <!-- ==================== 10. ЕД.ИЗМ. ==================== -->
 
-                    <DataGridTemplateColumn Header="Ед.изм." Width="70">
+                    <DataGridTemplateColumn Header="Ед.изм." Width="70" MinWidth="50" MaxWidth="100">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
-                                <TextBlock Text="{Binding UnitOfMeasure}" VerticalAlignment="Center" Margin="3" TextWrapping="Wrap"/>
+                                <TextBlock Text="{Binding UnitOfMeasure}" TextWrapping="Wrap" VerticalAlignment="Stretch" Margin="3"/>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                         <DataGridTemplateColumn.CellEditingTemplate>
@@ -341,22 +341,22 @@
 
                     <!-- ==================== 14. АВТОНАЗВАНИЕ ==================== -->
 
-                    <DataGridTemplateColumn Header="Автоназвание" Width="220">
+                    <DataGridTemplateColumn Header="Автоназвание" Width="220" MinWidth="150" MaxWidth="300">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
-                                <TextBlock Text="{Binding AutoWorkName}" TextWrapping="Wrap" VerticalAlignment="Center" Margin="3" MaxWidth="210" Foreground="#444"/>
+                                <TextBlock Text="{Binding AutoWorkName}" TextWrapping="Wrap" VerticalAlignment="Stretch" Margin="3" MaxWidth="285" Foreground="#444"/>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
 
                     <!-- ==================== 15. ПОСЛЕДУЮЩИЕ РАБОТЫ ==================== -->
 
-                    <DataGridTemplateColumn Header="Последующие работы" Width="150">
+                    <DataGridTemplateColumn Header="Последующие работы" Width="150" MinWidth="100" MaxWidth="220">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="{Binding SubsequentWork}" VerticalAlignment="Center"
-                                               Margin="3,0" TextWrapping="Wrap" MaxWidth="110"
+                                    <TextBlock Text="{Binding SubsequentWork}" TextWrapping="Wrap" VerticalAlignment="Stretch"
+                                               Margin="3,0" MaxWidth="145"
                                                Foreground="#888"/>
                                     <Button Content="🔍"
                                             Command="{Binding DataContext.SelectSubsequentWorkCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
@@ -502,10 +502,10 @@
 
                     <!-- ==================== 24. ПРИЛОЖЕНИЯ ВРУЧНУЮ ==================== -->
 
-                    <DataGridTemplateColumn Header="Приложения вручную" Width="130">
+                    <DataGridTemplateColumn Header="Приложения вручную" Width="130" MinWidth="80" MaxWidth="200">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
-                                <TextBlock Text="{Binding Appendix}" VerticalAlignment="Center" Margin="3" TextWrapping="Wrap"/>
+                                <TextBlock Text="{Binding Appendix}" TextWrapping="Wrap" VerticalAlignment="Stretch" Margin="3"/>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                         <DataGridTemplateColumn.CellEditingTemplate>
@@ -534,10 +534,10 @@
 
                     <!-- ==================== 26. ДОП. СВЕДЕНИЯ ==================== -->
 
-                    <DataGridTemplateColumn Header="Доп. сведения" Width="140">
+                    <DataGridTemplateColumn Header="Доп. сведения" Width="140" MinWidth="100" MaxWidth="200">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
-                                <TextBlock Text="{Binding AdditionalInfo}" VerticalAlignment="Center" Margin="3" TextWrapping="Wrap"/>
+                                <TextBlock Text="{Binding AdditionalInfo}" TextWrapping="Wrap" VerticalAlignment="Stretch" Margin="3"/>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                         <DataGridTemplateColumn.CellEditingTemplate>
@@ -566,10 +566,10 @@
 
                     <!-- ==================== 28. УСЛОВИЯ НАГРУЖЕНИЯ ==================== -->
 
-                    <DataGridTemplateColumn Header="Условия нагружения" Width="160">
+                    <DataGridTemplateColumn Header="Условия нагружения" Width="160" MinWidth="120" MaxWidth="250">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
-                                <TextBlock Text="{Binding FullLoadConditions}" VerticalAlignment="Center" Margin="3" TextWrapping="Wrap"/>
+                                <TextBlock Text="{Binding FullLoadConditions}" TextWrapping="Wrap" VerticalAlignment="Stretch" Margin="3"/>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                         <DataGridTemplateColumn.CellEditingTemplate>
@@ -582,10 +582,10 @@
 
                     <!-- ==================== 29. СТАТУС ==================== -->
 
-                    <DataGridTemplateColumn Header="Статус" Width="90">
+                    <DataGridTemplateColumn Header="Статус" Width="90" MinWidth="60" MaxWidth="150">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
-                                <TextBlock Text="{Binding Status}" VerticalAlignment="Center" Margin="3" TextWrapping="Wrap"/>
+                                <TextBlock Text="{Binding Status}" TextWrapping="Wrap" VerticalAlignment="Stretch" Margin="3"/>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                         <DataGridTemplateColumn.CellEditingTemplate>
