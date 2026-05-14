@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -29,6 +30,73 @@ public partial class ActsViewModel : ViewModelBase
     [ObservableProperty]
     private ObservableCollection<Act> _acts = new();
 
+    /// <summary>
+    /// Команда для установки даты окончания на основе даты начала + количество дней.
+    /// Принимает количество дней в качестве параметра (строка для привязки).
+    /// </summary>
+    [RelayCommand]
+    private void CalculateEndDateFromDays(string? daysStr)
+    {
+        if (SelectedAct == null || !SelectedAct.WorkStartDate.HasValue) return;
+        if (string.IsNullOrEmpty(daysStr) || !int.TryParse(daysStr, out int days) || days <= 0) return;
+
+        SelectedAct.WorkEndDate = SelectedAct.WorkStartDate.Value.AddDays(days);
+
+        RecalculateAndSaveAct(SelectedAct);
+    }
+
+    /// <summary>
+    /// Команда для установки даты окончания равной дате начала.
+    /// </summary>
+    [RelayCommand]
+    private void SetEndDateToStartDate()
+    {
+        if (SelectedAct == null || !SelectedAct.WorkStartDate.HasValue) return;
+
+        SelectedAct.WorkEndDate = SelectedAct.WorkStartDate.Value;
+
+        RecalculateAndSaveAct(SelectedAct);
+    }
+
+    /// <summary>
+    /// Команда для установки даты акта равной дате окончания.
+    /// </summary>
+    [RelayCommand]
+    private void SetActDateToEndDate()
+    {
+        if (SelectedAct == null || !SelectedAct.WorkEndDate.HasValue) return;
+
+        SelectedAct.ActDate = SelectedAct.WorkEndDate.Value;
+        SelectedAct.IsActDateManuallySet = false;
+
+        RecalculateAndSaveAct(SelectedAct);
+    }
+
+    /// <summary>
+    /// Команда для ввода своего количества дней и расчёта даты окончания.
+    /// </summary>
+    [RelayCommand]
+    private async Task EnterCustomDaysAsync()
+    {
+        if (SelectedAct == null || !SelectedAct.WorkStartDate.HasValue)
+        {
+            MessageBox.Show("Сначала укажите дату начала работ.", "Внимание", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        var dialog = new Views.InputDialog("Введите количество дней", "Количество дней:")
+        {
+            Owner = Application.Current.MainWindow
+        };
+
+        if (dialog.ShowDialog() == true && int.TryParse(dialog.InputValue, out int days) && days > 0)
+        {
+            SelectedAct.WorkEndDate = SelectedAct.WorkStartDate.Value.AddDays(days);
+            RecalculateAndSaveAct(SelectedAct);
+            StatusMessage = $"Дата окончания установлена: {SelectedAct.WorkEndDate:dd.MM.yyyy} (через {days} дней)";
+        }
+    }
+
     [ObservableProperty]
     private Act? _selectedAct;
 
@@ -52,6 +120,9 @@ public partial class ActsViewModel : ViewModelBase
     [ObservableProperty]
     private ObservableCollection<Act> _availableActsForLink = new();
 
+    [ObservableProperty]
+    private ObservableCollection<string> _availableUnitOfMeasures = new();
+
     public ActsViewModel(
         IDbContextFactory<AppDbContext> contextFactory,
         IFileService fileService,
@@ -71,6 +142,72 @@ public partial class ActsViewModel : ViewModelBase
 
         // Запускаем загрузку асинхронно
         _ = LoadDataAsync();
+    }
+
+    public void SortActsByColumn(string columnHeader, ListSortDirection direction)
+    {
+        var sorted = columnHeader switch
+        {
+            "№ п/п" => direction == ListSortDirection.Ascending
+                ? Acts.OrderBy(a => a.SortOrder).ToList()
+                : Acts.OrderByDescending(a => a.SortOrder).ToList(),
+            "Тип" => direction == ListSortDirection.Ascending
+                ? Acts.OrderBy(a => a.Type).ToList()
+                : Acts.OrderByDescending(a => a.Type).ToList(),
+            "Номер акта" => direction == ListSortDirection.Ascending
+                ? Acts.OrderBy(a => a.ActNumber).ToList()
+                : Acts.OrderByDescending(a => a.ActNumber).ToList(),
+            "Наименование работ" => direction == ListSortDirection.Ascending
+                ? Acts.OrderBy(a => a.WorkName).ToList()
+                : Acts.OrderByDescending(a => a.WorkName).ToList(),
+            "Объём" => direction == ListSortDirection.Ascending
+                ? Acts.OrderBy(a => a.Volume).ToList()
+                : Acts.OrderByDescending(a => a.Volume).ToList(),
+            "Ед.изм." => direction == ListSortDirection.Ascending
+                ? Acts.OrderBy(a => a.UnitOfMeasure).ToList()
+                : Acts.OrderByDescending(a => a.UnitOfMeasure).ToList(),
+            "Дата начала" => direction == ListSortDirection.Ascending
+                ? Acts.OrderBy(a => a.WorkStartDate).ToList()
+                : Acts.OrderByDescending(a => a.WorkStartDate).ToList(),
+            "Дата окончания" => direction == ListSortDirection.Ascending
+                ? Acts.OrderBy(a => a.WorkEndDate).ToList()
+                : Acts.OrderByDescending(a => a.WorkEndDate).ToList(),
+            "Дата акта" => direction == ListSortDirection.Ascending
+                ? Acts.OrderBy(a => a.ActDate).ToList()
+                : Acts.OrderByDescending(a => a.ActDate).ToList(),
+            "Статус" => direction == ListSortDirection.Ascending
+                ? Acts.OrderBy(a => a.Status).ToList()
+                : Acts.OrderByDescending(a => a.Status).ToList(),
+            _ => direction == ListSortDirection.Ascending
+                ? Acts.OrderBy(a => a.SortOrder).ToList()
+                : Acts.OrderByDescending(a => a.SortOrder).ToList()
+        };
+
+        Acts.Clear();
+        foreach (var act in sorted)
+        {
+            Acts.Add(act);
+        }
+    }
+
+    private string _lastSortColumn = "№ п/п";
+    private ListSortDirection _lastSortDirection = ListSortDirection.Descending;
+
+    public void SortActsByColumnToggle(string columnHeader)
+    {
+        if (_lastSortColumn == columnHeader)
+        {
+            _lastSortDirection = _lastSortDirection == ListSortDirection.Ascending
+                ? ListSortDirection.Descending
+                : ListSortDirection.Ascending;
+        }
+        else
+        {
+            _lastSortColumn = columnHeader;
+            _lastSortDirection = ListSortDirection.Ascending;
+        }
+
+        SortActsByColumn(columnHeader, _lastSortDirection);
     }
 
     /// <summary>
@@ -161,6 +298,12 @@ public partial class ActsViewModel : ViewModelBase
             foreach (var org in organizationsList)
                 Organizations.Add(org);
 
+            // Загрузка единиц измерения (стандартные + кастомные для объекта)
+            var unitOfMeasures = LoadUnitOfMeasures(context);
+            AvailableUnitOfMeasures.Clear();
+            foreach (var unit in unitOfMeasures)
+                AvailableUnitOfMeasures.Add(unit);
+
             StatusMessage = Acts.Count > 0
                 ? $"Загружено актов: {Acts.Count}, сотрудников: {Employees.Count}"
                 : "Нет актов для данного объекта. Нажмите «➕ Новый акт» для создания.";
@@ -173,6 +316,25 @@ public partial class ActsViewModel : ViewModelBase
         finally
         {
             IsLoading = false;
+        }
+    }
+
+    private List<string> LoadUnitOfMeasures(AppDbContext context)
+    {
+        var defaultUnits = new List<string> { "м2", "м3", "п.м.", "шт", "кг", "т", "л", "компл", "ч" };
+
+        try
+        {
+            var customUnits = context.UnitOfMeasures
+                .Where(u => u.ConstructionObjectId == _objectId)
+                .Select(u => u.Name)
+                .ToList();
+
+            return defaultUnits.Union(customUnits).OrderBy(u => u).ToList();
+        }
+        catch
+        {
+            return defaultUnits;
         }
     }
 
@@ -991,11 +1153,56 @@ public partial class ActsViewModel : ViewModelBase
     {
         if (act == null) return;
 
+        // Обновляем даты в соответствии с бизнес-логикой
+        UpdateActDates(act);
+
         // Пересчитываем вычисляемые поля по формулам VBA
         ActCalculationService.RecalculateAll(act);
 
         // Сохраняем в БД
         OnActPropertyChanged(act);
+    }
+
+    /// <summary>
+    /// Обновляет даты акта в соответствии с бизнес-логикой (Excel-стиль):
+    /// - Если задано DurationDays > 0, то WorkEndDate = WorkStartDate + DurationDays
+    /// - Если DurationDays = 0, то WorkEndDate = WorkStartDate (по умолчанию)
+    /// - Дата акта автоматически = дата окончания (если не изменена вручную)
+    /// </summary>
+    /// <param name="act">Акт, для которого нужно обновить даты</param>
+    private void UpdateActDates(Act act)
+    {
+        // Расчёт даты окончания от даты начала
+        if (act.WorkStartDate.HasValue)
+        {
+            if (act.DurationDays > 0)
+            {
+                act.WorkEndDate = act.WorkStartDate.Value.AddDays(act.DurationDays);
+            }
+            else if (!act.WorkEndDate.HasValue)
+            {
+                act.WorkEndDate = act.WorkStartDate;
+            }
+        }
+
+        // Автоматическая дата акта = дата окончания
+        if (act.WorkEndDate.HasValue && !act.IsActDateManuallySet)
+        {
+            act.ActDate = act.WorkEndDate.Value;
+        }
+    }
+
+    /// <summary>
+    /// Вызывается при ручном изменении даты акта пользователем.
+    /// Устанавливает флаг, что дата была изменена вручную.
+    /// </summary>
+    /// <param name="act">Акт, для которого была изменена дата акта</param>
+    public void OnActDateManuallyChanged(Act act)
+    {
+        if (act != null)
+        {
+            act.IsActDateManuallySet = true;
+        }
     }
 
     /// <summary>
@@ -1137,5 +1344,43 @@ public partial class ActsViewModel : ViewModelBase
         target.CreatedAt = source.CreatedAt;
         target.CreatedBy = source.CreatedBy;
         target.UpdatedAt = source.UpdatedAt ?? DateTime.Now;
+    }
+
+    public void AddCustomUnitOfMeasure(string unitName)
+    {
+        if (string.IsNullOrWhiteSpace(unitName)) return;
+
+        var trimmed = unitName.Trim();
+
+        System.Windows.Application.Current.Dispatcher.Invoke(() =>
+        {
+            if (AvailableUnitOfMeasures.Contains(trimmed)) return;
+            AvailableUnitOfMeasures.Add(trimmed);
+        });
+
+        Task.Run(async () =>
+        {
+            try
+            {
+                await using var context = await _contextFactory.CreateDbContextAsync();
+
+                var existing = await context.UnitOfMeasures
+                    .FirstOrDefaultAsync(u => u.Name == trimmed && u.ConstructionObjectId == _objectId);
+
+                if (existing != null) return;
+
+                var newUnit = new UnitOfMeasure
+                {
+                    Name = trimmed,
+                    ConstructionObjectId = _objectId,
+                    IsCustom = true,
+                    CreatedAt = DateTime.Now
+                };
+
+                context.UnitOfMeasures.Add(newUnit);
+                await context.SaveChangesAsync();
+            }
+            catch { }
+        });
     }
 }

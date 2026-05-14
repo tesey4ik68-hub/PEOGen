@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using AGenerator.Models;
 using Microsoft.EntityFrameworkCore;
@@ -18,6 +18,7 @@ public class AppDbContext : DbContext
     public DbSet<ActProjectDoc> ActProjectDocs { get; set; }
     public DbSet<ProjectDoc> ProjectDocs { get; set; }
     public DbSet<Organization> Organizations { get; set; }
+    public DbSet<UnitOfMeasure> UnitOfMeasures { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {

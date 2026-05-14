@@ -31,6 +31,21 @@ public class Act
     public DateTime ActDate { get; set; } = DateTime.Now;
     public DateTime? ProtocolDate { get; set; }
 
+    /// <summary>
+    /// Количество дней для автоматического расчёта даты окончания от даты начала.
+    /// Если значение > 0, то WorkEndDate = WorkStartDate + DurationDays.
+    /// </summary>
+    public int DurationDays { get; set; }
+
+    // ==================== ФЛАГИ ДЛЯ УПРАВЛЕНИЯ ДАТАМИ ====================
+
+    /// <summary>
+    /// Признак того, что дата акта была установлена пользователем вручную.
+    /// Если true, то дата акта не синхронизируется с датой окончания.
+    /// </summary>
+    [NotMapped]
+    public bool IsActDateManuallySet { get; set; } = false;
+
     // ==================== СВЯЗИ С ДРУГИМИ АКТАМИ ====================
 
     public int? RelatedActId { get; set; } // ИД (исполнительная документация)

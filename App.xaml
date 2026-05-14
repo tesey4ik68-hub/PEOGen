@@ -8,6 +8,7 @@
             <!-- === КОНВЕРТЕРЫ === -->
             <converters:NullToBoolConverter x:Key="NullToBoolConverter"/>
             <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+            <converters:AddDaysConverter x:Key="AddDaysConverter"/>
             
             <!-- === ЦВЕТОВАЯ ПАЛИТРА GLASSMORPHISM (Светло-синяя) === -->
             <Color x:Key="GradientStart">#4FC3F7</Color>

@@ -66,6 +66,8 @@
                   EnableRowVirtualization="False"
                   EnableColumnVirtualization="False"
                   RowHeight="NaN"
+                  CanUserSortColumns="False"
+                  Sorting="MyDataGrid_Sorting"
                   behaviors:DataGridCellTooltipBehavior.IsEnabled="True"
                   behaviors:DataGridAutoRowHeightBehavior.IsEnabled="True">
 
@@ -282,8 +284,12 @@
                         </DataGridTemplateColumn.CellTemplate>
                         <DataGridTemplateColumn.CellEditingTemplate>
                             <DataTemplate>
-                                <TextBox Text="{Binding UnitOfMeasure, UpdateSourceTrigger=PropertyChanged}"
-                                        Style="{StaticResource WrapTextBoxStyle}"/>
+                                <ComboBox ItemsSource="{Binding DataContext.AvailableUnitOfMeasures, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                         Text="{Binding UnitOfMeasure, UpdateSourceTrigger=PropertyChanged}"
+                                         IsEditable="True"
+                                         StaysOpenOnEdit="True"
+                                         Margin="2"
+                                         FontSize="12"/>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellEditingTemplate>
                     </DataGridTemplateColumn>
@@ -300,7 +306,23 @@
                         <DataGridTemplateColumn.CellEditingTemplate>
                             <DataTemplate>
                                 <DatePicker SelectedDate="{Binding WorkStartDate, UpdateSourceTrigger=PropertyChanged}"
-                                            Margin="2"/>
+                                            Margin="2"
+                                            FirstDayOfWeek="Monday"
+                                            IsDropDownOpen="{Binding IsKeyboardFocusWithin, RelativeSource={RelativeSource AncestorType=DataGridCell}, Mode=OneWay}">
+                                    <DatePicker.ContextMenu>
+                                        <ContextMenu>
+                                            <MenuItem Header="Установить как дату окончания" Command="{Binding DataContext.SetEndDateToStartDateCommand, RelativeSource={RelativeSource AncestorType=UserControl, Mode=FindAncestor}}"/>
+                                            <Separator/>
+                                            <MenuItem Header="+1 день → дата окончания" Command="{Binding DataContext.CalculateEndDateFromDaysCommand, RelativeSource={RelativeSource AncestorType=UserControl, Mode=FindAncestor}}" CommandParameter="1"/>
+                                            <MenuItem Header="+3 дня → дата окончания" Command="{Binding DataContext.CalculateEndDateFromDaysCommand, RelativeSource={RelativeSource AncestorType=UserControl, Mode=FindAncestor}}" CommandParameter="3"/>
+                                            <MenuItem Header="+7 дней → дата окончания" Command="{Binding DataContext.CalculateEndDateFromDaysCommand, RelativeSource={RelativeSource AncestorType=UserControl, Mode=FindAncestor}}" CommandParameter="7"/>
+                                            <MenuItem Header="+14 дней → дата окончания" Command="{Binding DataContext.CalculateEndDateFromDaysCommand, RelativeSource={RelativeSource AncestorType=UserControl, Mode=FindAncestor}}" CommandParameter="14"/>
+                                            <MenuItem Header="+30 дней → дата окончания" Command="{Binding DataContext.CalculateEndDateFromDaysCommand, RelativeSource={RelativeSource AncestorType=UserControl, Mode=FindAncestor}}" CommandParameter="30"/>
+                                            <Separator/>
+                                            <MenuItem Header="Ввести количество дней..." Command="{Binding DataContext.EnterCustomDaysCommand, RelativeSource={RelativeSource AncestorType=UserControl, Mode=FindAncestor}}"/>
+                                        </ContextMenu>
+                                    </DatePicker.ContextMenu>
+                                </DatePicker>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellEditingTemplate>
                     </DataGridTemplateColumn>
@@ -317,7 +339,21 @@
                         <DataGridTemplateColumn.CellEditingTemplate>
                             <DataTemplate>
                                 <DatePicker SelectedDate="{Binding WorkEndDate, UpdateSourceTrigger=PropertyChanged}"
-                                            Margin="2"/>
+                                            Margin="2"
+                                            FirstDayOfWeek="Monday"
+                                            IsDropDownOpen="{Binding IsKeyboardFocusWithin, RelativeSource={RelativeSource AncestorType=DataGridCell}, Mode=OneWay}">
+                                    <DatePicker.ContextMenu>
+                                        <ContextMenu>
+                                            <MenuItem Header="+1 день" Command="{Binding DataContext.CalculateEndDateFromDaysCommand, RelativeSource={RelativeSource AncestorType=UserControl, Mode=FindAncestor}}" CommandParameter="1"/>
+                                            <MenuItem Header="+3 дня" Command="{Binding DataContext.CalculateEndDateFromDaysCommand, RelativeSource={RelativeSource AncestorType=UserControl, Mode=FindAncestor}}" CommandParameter="3"/>
+                                            <MenuItem Header="+7 дней" Command="{Binding DataContext.CalculateEndDateFromDaysCommand, RelativeSource={RelativeSource AncestorType=UserControl, Mode=FindAncestor}}" CommandParameter="7"/>
+                                            <MenuItem Header="+14 дней" Command="{Binding DataContext.CalculateEndDateFromDaysCommand, RelativeSource={RelativeSource AncestorType=UserControl, Mode=FindAncestor}}" CommandParameter="14"/>
+                                            <MenuItem Header="+30 дней" Command="{Binding DataContext.CalculateEndDateFromDaysCommand, RelativeSource={RelativeSource AncestorType=UserControl, Mode=FindAncestor}}" CommandParameter="30"/>
+                                            <Separator/>
+                                            <MenuItem Header="Установить дату акта = дате окончания" Command="{Binding DataContext.SetActDateToEndDateCommand, RelativeSource={RelativeSource AncestorType=UserControl, Mode=FindAncestor}}"/>
+                                        </ContextMenu>
+                                    </DatePicker.ContextMenu>
+                                </DatePicker>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellEditingTemplate>
                     </DataGridTemplateColumn>
@@ -334,7 +370,19 @@
                         <DataGridTemplateColumn.CellEditingTemplate>
                             <DataTemplate>
                                 <DatePicker SelectedDate="{Binding ActDate, UpdateSourceTrigger=PropertyChanged}"
-                                            Margin="2"/>
+                                            Margin="2"
+                                            FirstDayOfWeek="Monday"
+                                            IsDropDownOpen="{Binding IsKeyboardFocusWithin, RelativeSource={RelativeSource AncestorType=DataGridCell}, Mode=OneWay}">
+                                    <DatePicker.ContextMenu>
+                                        <ContextMenu>
+                                            <MenuItem Header="+1 день" Command="{Binding DataContext.AddDaysCommand, RelativeSource={RelativeSource AncestorType=UserControl, Mode=FindAncestor}}" CommandParameter="{Binding Path=SelectedDate, RelativeSource={RelativeSource AncestorType=DatePicker}, Converter={StaticResource AddDaysConverter}, ConverterParameter=1}"/>
+                                            <MenuItem Header="+3 дня" Command="{Binding DataContext.AddDaysCommand, RelativeSource={RelativeSource AncestorType=UserControl, Mode=FindAncestor}}" CommandParameter="{Binding Path=SelectedDate, RelativeSource={RelativeSource AncestorType=DatePicker}, Converter={StaticResource AddDaysConverter}, ConverterParameter=3}"/>
+                                            <MenuItem Header="+7 дней" Command="{Binding DataContext.AddDaysCommand, RelativeSource={RelativeSource AncestorType=UserControl, Mode=FindAncestor}}" CommandParameter="{Binding Path=SelectedDate, RelativeSource={RelativeSource AncestorType=DatePicker}, Converter={StaticResource AddDaysConverter}, ConverterParameter=7}"/>
+                                            <MenuItem Header="+14 дней" Command="{Binding DataContext.AddDaysCommand, RelativeSource={RelativeSource AncestorType=UserControl, Mode=FindAncestor}}" CommandParameter="{Binding Path=SelectedDate, RelativeSource={RelativeSource AncestorType=DatePicker}, Converter={StaticResource AddDaysConverter}, ConverterParameter=14}"/>
+                                            <MenuItem Header="+30 дней" Command="{Binding DataContext.AddDaysCommand, RelativeSource={RelativeSource AncestorType=UserControl, Mode=FindAncestor}}" CommandParameter="{Binding Path=SelectedDate, RelativeSource={RelativeSource AncestorType=DatePicker}, Converter={StaticResource AddDaysConverter}, ConverterParameter=30}"/>
+                                        </ContextMenu>
+                                    </DatePicker.ContextMenu>
+                                </DatePicker>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellEditingTemplate>
                     </DataGridTemplateColumn>

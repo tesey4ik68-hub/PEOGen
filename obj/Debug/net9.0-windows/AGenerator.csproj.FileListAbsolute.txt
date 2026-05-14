@@ -176,3 +176,5 @@ C:\Users\aasolomennikov\Desktop\ID программ\2026\PEOGen\obj\Debug\net9.0
 C:\Users\aasolomennikov\Desktop\ID программ\2026\PEOGen\obj\Debug\net9.0-windows\Views\OrganizationsView.baml
 C:\Users\aasolomennikov\Desktop\ID программ\2026\PEOGen\obj\Debug\net9.0-windows\Views\ObjectEditWindow.baml
 C:\Users\aasolomennikov\Desktop\ID программ\2026\PEOGen\obj\Debug\net9.0-windows\Views\ObjectEditWindow.g.cs
+C:\Users\aasolomennikov\Desktop\ID программ\2026\PEOGen\obj\Debug\net9.0-windows\Views\InputDialog.baml
+C:\Users\aasolomennikov\Desktop\ID программ\2026\PEOGen\obj\Debug\net9.0-windows\Views\InputDialog.g.cs
